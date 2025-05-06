@@ -1,0 +1,26 @@
+package middleware
+
+import (
+	"net/http"
+
+	"{{.name}}/config"
+	"{{.name}}/pkg/errors"
+	"{{.name}}/pkg/util"
+	"{{.name}}/pkg/wrapper"
+
+	"github.com/gin-gonic/gin"
+)
+
+func JwtAuthMiddleware(config *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		err := util.TokenValid(c, config.JWT)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, wrapper.NewErrorResponse(
+				errors.NewUnauthorizedError("Unauthorized"),
+			))
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
