@@ -1,0 +1,25 @@
+package handler
+
+import (
+	"{{.name}}/pkg/logger"
+	"net/http"
+	"{{.name}}/pkg/wrapper"
+
+	"github.com/gin-gonic/gin"
+)
+
+type HealthHandler struct {
+	logger *logger.StandardLogger
+}
+
+func NewHealthHandler(logger *logger.StandardLogger) *HealthHandler {
+	return &HealthHandler{logger: logger}
+}
+
+func (h *HealthHandler) HealthCheck() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		h.logger.Info("health check called")
+		wrapper.JSONOk(ctx, map[string]interface{}{"status": "ok"})
+	}
+}
+

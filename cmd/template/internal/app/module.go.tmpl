@@ -1,0 +1,17 @@
+package app
+
+import (
+	"{{.name}}/internal/http/handler"
+	"{{.name}}/internal/http/router"
+	"{{.name}}/internal/repository"
+	"{{.name}}/internal/service"
+
+	"go.uber.org/fx"
+)
+
+var Module = fx.Options(
+	handler.Module,
+	router.Module,
+	repository.Module,
+	service.Module,
+)
