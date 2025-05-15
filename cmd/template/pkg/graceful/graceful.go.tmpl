@@ -28,7 +28,7 @@ type service struct {
 type Service interface {
 	Register(g *gin.Engine)
 	StartServer(handler http.Handler, port string)
-	Close(logger *logger.StandardLogger)
+	Close(logger logger.Logger)
 }
 
 func NewService(opts ...Option) Service {
@@ -60,7 +60,7 @@ func (s *service) StartServer(handler http.Handler, port string) {
 	}
 }
 
-func (s *service) stopServer(logger *logger.StandardLogger) {
+func (s *service) stopServer(logger logger.Logger) {
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
 	if err := s.server.Shutdown(ctx); err != nil {
@@ -70,7 +70,7 @@ func (s *service) stopServer(logger *logger.StandardLogger) {
 	logger.Info("stop server success")
 }
 
-func (s *service) Close(logger *logger.StandardLogger) {
+func (s *service) Close(logger logger.Logger) {
 	logger.Info("set ping status to 503")
 	s.currentStatus = http.StatusServiceUnavailable
 	time.Sleep(s.waitTime)
@@ -78,7 +78,7 @@ func (s *service) Close(logger *logger.StandardLogger) {
 	logger.Info("server exited...")
 }
 
-func (s *service) SignalStop(logger *logger.StandardLogger) {
+func (s *service) SignalStop(logger logger.Logger) {
 	logger.Info("set ping status to 503")
 	s.currentStatus = http.StatusServiceUnavailable
 	time.Sleep(s.waitTime)

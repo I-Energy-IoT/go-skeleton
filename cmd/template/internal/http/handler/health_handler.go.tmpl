@@ -9,10 +9,10 @@ import (
 )
 
 type HealthHandler struct {
-	logger *logger.StandardLogger
+	logger logger.Logger
 }
 
-func NewHealthHandler(logger *logger.StandardLogger) *HealthHandler {
+func NewHealthHandler(logger logger.Logger) *HealthHandler {
 	return &HealthHandler{logger: logger}
 }
 

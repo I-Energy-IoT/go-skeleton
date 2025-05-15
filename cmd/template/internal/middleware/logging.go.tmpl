@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func LoggingMiddleware(logger *logger.StandardLogger) gin.HandlerFunc {
+func LoggingMiddleware(logger logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 
