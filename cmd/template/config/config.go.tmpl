@@ -76,10 +76,6 @@ func LoadConfig() {
 	}
 }
 
-func ServerConfig() *Config {
-	return &Config{}
-}
-
 var Module = fx.Options(
 	fx.Provide(NewConfig),
 )

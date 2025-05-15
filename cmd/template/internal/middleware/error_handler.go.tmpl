@@ -11,15 +11,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/lib/pq"
+	"go.uber.org/zap"
 )
 
 // ErrorHandler handles application errors
 type ErrorHandler struct {
-	logger *logger.StandardLogger
+	logger logger.Logger
 }
 
 // NewErrorHandler creates a new error handler
-func NewErrorHandler(logger *logger.StandardLogger) *ErrorHandler {
+func NewErrorHandler(logger logger.Logger) *ErrorHandler {
 	return &ErrorHandler{
 		logger: logger,
 	}
@@ -30,7 +31,10 @@ func (h *ErrorHandler) Handle() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				h.logger.Error("panic recovered", "error", err, "stack", string(debug.Stack()))
+				h.logger.Error("panic recovered",
+					zap.Any("error", err),
+					zap.String("stack", string(debug.Stack())),
+				)
 				c.JSON(http.StatusInternalServerError, wrapper.NewErrorResponse(
 					errors.NewInternalServerError("Internal server error"),
 				))
@@ -47,7 +51,7 @@ func (h *ErrorHandler) Handle() gin.HandlerFunc {
 			}
 			err := lastErr.Err
 
-			h.logger.Error("request error", "error", err)
+			h.logger.Error("request error", zap.Any("error", err))
 
 			// Handle different types of errors
 			switch e := err.(type) {
@@ -93,7 +97,7 @@ func (h *ErrorHandler) handleDatabaseError(c *gin.Context, err *pq.Error) {
 			errors.NewBadRequestError("invalid reference"),
 		))
 	default:
-		h.logger.Error("database error", "error", err)
+		h.logger.Error("database error", zap.Any("error", err))
 		c.JSON(http.StatusInternalServerError, wrapper.NewErrorResponse(
 			errors.NewInternalServerError("database error"),
 		))

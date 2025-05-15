@@ -18,7 +18,7 @@ import (
 type RouterParams struct {
 	fx.In
 	HealthRouter HealthRouter
-	Logger       *logger.StandardLogger
+	Logger       logger.Logger
 	ErrorHandler *middleware.ErrorHandler
 }
 
@@ -29,7 +29,7 @@ func registerSwaggerHandler(g *gin.Engine) {
 	swag.Register(swaggerAPI)
 }
 
-func startServer(g *gin.Engine, lifecycle fx.Lifecycle, logger *logger.StandardLogger, config *config.Config) {
+func startServer(g *gin.Engine, lifecycle fx.Lifecycle, logger logger.Logger, config *config.Config) {
 	gracefulService := graceful.NewService(graceful.WithStopTimeout(time.Second), graceful.WithWaitTime(time.Second))
 	gracefulService.Register(g)
 	lifecycle.Append(
