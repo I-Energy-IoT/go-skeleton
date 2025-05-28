@@ -1,13 +1,11 @@
-.PHONY: swagger-init swagger-build build run test install-tools lint format init
-
-MOCK_OUTPUT_DIR=internal/mock
-MOCK_CASE=snake
+.PHONY: swagger-init swagger-build build run test install-tools lint format init test generate-mock
 
 install-tools:
 	@echo "Installing required tools..."
 	@go install github.com/swaggo/swag/cmd/swag@latest
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@go install golang.org/x/tools/cmd/goimports@latest
+	@go install github.com/stretchr/testify/v2@latest
 	@go install github.com/vektra/mockery/v2@latest
 	@echo "Tools installed successfully!"
 
@@ -37,5 +35,8 @@ fmt:
 lint:
 	golangci-lint run ./...
 
-generate-mocks:
-	mockery
+generate-mock:
+	mockery --all --dir ./internal/service --output ./internal/service/mocks
+
+test:
+	go test -v ./...

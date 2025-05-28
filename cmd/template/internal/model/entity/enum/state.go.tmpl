@@ -7,16 +7,16 @@ const (
 )
 
 const (
-	StateActive   = "ACTIVE"
-	StateInactive = "INACTIVE"
+	StateActive   = "Active"
+	StateInactive = "Inactive"
 )
 
 // Convert state from int to string
 func EnumState(state int) string {
 	switch state {
-	case 0:
-		return StateActive
 	case 1:
+		return StateActive
+	case 2:
 		return StateInactive
 	default:
 		return ""
@@ -27,10 +27,10 @@ func EnumState(state int) string {
 func EnumStateDB(state string) int {
 	switch state {
 	case StateActive:
-		return 0
-	case StateInactive:
 		return 1
+	case StateInactive:
+		return 2
 	default:
-		return -1
+		return 0
 	}
 }

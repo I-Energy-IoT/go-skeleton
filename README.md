@@ -65,7 +65,7 @@ myservice/
 
 1. Create a new service:
 ```bash
-inergy-template new --name yourservice
+go-skeleton new --name yourservice
 ```
 
 2. Navigate to your service directory:
@@ -122,4 +122,5 @@ make generate-mock
 - `make lint` - Run linters
 - `make swagger-init` - Generate Swagger documentation
 - `make swagger-build` - Update Swagger documentation
-- `make generate-mock` - Update Swagger documentation
+- `make generata-mock` - Generate mocks
+- `make test` - Run test

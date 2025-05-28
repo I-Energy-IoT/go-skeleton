@@ -19,7 +19,6 @@ type RouterParams struct {
 	fx.In
 	HealthRouter HealthRouter
 	Logger       logger.Logger
-	ErrorHandler *middleware.ErrorHandler
 }
 
 func registerSwaggerHandler(g *gin.Engine) {
@@ -53,7 +52,7 @@ func NewRouter(params RouterParams) *gin.Engine {
 
 	router.Use(middleware.CorsMiddleware())
 	router.Use(middleware.LoggingMiddleware(params.Logger))
-	router.Use(params.ErrorHandler.Handle())
+	router.Use(middleware.ErrorHandlerMiddleware(params.Logger))
 
 	api := router.Group("/api/v1")
 	params.HealthRouter.Register(api)
@@ -62,7 +61,6 @@ func NewRouter(params RouterParams) *gin.Engine {
 }
 
 var Module = fx.Options(
-	fx.Provide(middleware.NewErrorHandler),
 	fx.Provide(NewHealthRouter),
 	fx.Provide(NewRouter),
 	fx.Invoke(registerSwaggerHandler, startServer),
