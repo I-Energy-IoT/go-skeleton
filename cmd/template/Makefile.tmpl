@@ -1,4 +1,7 @@
-.PHONY: swagger-init swagger-build build run test install-tools lint format init test generate-mock
+.PHONY: swagger-init swagger-build build run test install-tools lint format init generate-mock
+
+MOCK_OUTPUT_DIR=internal/mock
+MOCK_CASE=snake
 
 install-tools:
 	@echo "Installing required tools..."
@@ -37,6 +40,3 @@ lint:
 
 generate-mock:
 	mockery --all --dir ./internal/service --output ./internal/service/mocks
-
-test:
-	go test -v ./...
