@@ -1,0 +1,58 @@
+.PHONY: swagger-init swagger-build build run test install-tools lint format init generate-mock migrate-create migrate-up migrate-down migrate-version migrate-force
+
+install-tools:
+	@echo "Installing required tools..."
+	@go install github.com/swaggo/swag/cmd/swag@latest
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@go install golang.org/x/tools/cmd/goimports@latest
+	@go install github.com/stretchr/testify/v2@latest
+	@go install github.com/vektra/mockery/v2@latest
+	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+	@echo "Tools installed successfully!"
+
+swagger-init:
+	swag init -g cmd/app/main.go -o docs/swagger
+
+swagger-build:
+	swag fmt
+	swag init -g cmd/app/main.go -o docs/swagger
+
+init:
+	go mod tidy
+	go mod download
+
+build:
+	go build -o bin/app ./cmd/app/main.go
+
+run:
+	bin/app api
+
+test:
+	go test -v ./...
+
+fmt:
+	goimports -w .
+
+lint:
+	golangci-lint run ./...
+
+generate-mock:
+	mockery --all --dir ./internal/model/entity --output ./internal/mock --case snake
+
+# Migration commands
+migrate-create:
+	@read -p "Enter migration name: " name; \
+	migrate create -ext sql -dir migrations -seq $$name
+
+migrate-up:
+	go run cmd/migrate/main.go -up
+
+migrate-down:
+	go run cmd/migrate/main.go -down
+
+migrate-version:
+	go run cmd/migrate/main.go -version
+
+migrate-force:
+	@read -p "Enter version to force: " version; \
+	go run cmd/migrate/main.go -force $$version

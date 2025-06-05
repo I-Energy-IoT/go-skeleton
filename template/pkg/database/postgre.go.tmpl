@@ -1,0 +1,103 @@
+package database
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"{{.Name}}/config"
+
+	loggerCustom "{{.Name}}/pkg/logger"
+
+	"github.com/spf13/cast"
+	"go.uber.org/fx"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+)
+
+type postgreDB struct {
+	DB *gorm.DB
+}
+
+type PostgreDB interface {
+	GetDB() *gorm.DB
+	BeginTransaction() (*gorm.DB, error)
+	ReleaseTransaction(tx *gorm.DB, err error)
+	CommitTransaction(tx *gorm.DB) error
+	RollbackTransaction(tx *gorm.DB) error
+}
+
+func NewPostgreDB(config *config.Config, log loggerCustom.Logger) (PostgreDB, error) {
+	db, err := gorm.Open(postgres.New(
+		postgres.Config{
+			DSN: fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+				config.DB.Host, config.DB.User, config.DB.Password, config.DB.DBName, config.DB.Port, config.DB.SSLMode),
+			PreferSimpleProtocol: true,
+		},
+	), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
+
+	if err != nil {
+		log.WithError(err).Fatal("Failed to connect to database")
+	}
+
+	sqlDb, err := db.DB()
+	if err != nil {
+		log.WithError(err).Fatal("Failed to get DB from gorm")
+		return nil, err
+	}
+
+	if config.DB.SetMaxIdleConns != "" {
+		sqlDb.SetMaxIdleConns(cast.ToInt(config.DB.SetMaxIdleConns))
+	}
+	if config.DB.SetMaxOpenConns != "" {
+		sqlDb.SetMaxOpenConns(cast.ToInt(config.DB.SetMaxOpenConns))
+	}
+	if config.DB.SetConnMaxLifetime != "" {
+		sqlDb.SetConnMaxLifetime(cast.ToDuration(config.DB.SetConnMaxLifetime) * time.Hour)
+	}
+	return &postgreDB{DB: db}, nil
+}
+
+func RunPostgreDB(lc fx.Lifecycle, db PostgreDB, log loggerCustom.Logger) {
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			sqlDb, err := db.GetDB().DB()
+			if err != nil {
+				log.WithError(err).Fatal("Failed to get DB from gorm")
+				return err
+			}
+			return sqlDb.Close()
+		},
+	})
+}
+
+// BeginTransaction implements Database.
+func (d *postgreDB) BeginTransaction() (*gorm.DB, error) {
+	return d.DB.Begin(), nil
+}
+
+// CommitTransaction implements Database.
+func (d *postgreDB) CommitTransaction(tx *gorm.DB) error {
+	return tx.Commit().Error
+}
+
+// GetDB implements Database.
+func (d *postgreDB) GetDB() *gorm.DB {
+	return d.DB
+}
+
+// ReleaseTransaction implements Database.
+func (d *postgreDB) ReleaseTransaction(tx *gorm.DB, err error) {
+	if err != nil {
+		d.RollbackTransaction(tx)
+	}
+	tx.Commit()
+}
+
+// RollbackTransaction implements Database.
+func (d *postgreDB) RollbackTransaction(tx *gorm.DB) error {
+	return tx.Rollback().Error
+}

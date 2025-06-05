@@ -1,0 +1,20 @@
+package main
+
+import (
+	"{{.Name}}/config"
+	"{{.Name}}/internal/app"
+	"{{.Name}}/pkg/database"
+	"{{.Name}}/pkg/logger"
+
+	"go.uber.org/fx"
+)
+
+func main() {
+	fx.New(
+		config.Module,
+		fx.Provide(database.NewPostgreDB),
+		fx.Invoke(database.RunPostgreDB),
+		app.Module,
+		logger.Module,
+	).Run()
+}

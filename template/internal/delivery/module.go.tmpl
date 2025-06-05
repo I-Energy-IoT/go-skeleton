@@ -1,0 +1,11 @@
+package delivery
+
+import (
+	"{{.Name}}/internal/delivery/http"
+
+	"go.uber.org/fx"
+)
+
+var Module = fx.Options(
+	http.Module,
+)
