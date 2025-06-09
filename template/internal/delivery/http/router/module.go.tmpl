@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 type RouterParams struct {
@@ -34,7 +35,7 @@ func startServer(g *gin.Engine, lifecycle fx.Lifecycle, logger logger.Logger, co
 		fx.Hook{
 			OnStart: func(context.Context) error {
 				port := fmt.Sprintf("%d", cast.ToInt(config.Server.Port))
-				fmt.Println("run on port:", port)
+				logger.Info("run on port:", zap.String("port", port))
 				go gracefulService.StartServer(g, port)
 				return nil
 			},
