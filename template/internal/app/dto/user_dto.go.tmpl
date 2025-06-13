@@ -1,0 +1,28 @@
+package dto
+
+import "{{.Name}}/internal/domain/entity"
+
+type UserCreateRequest struct {
+	Username string `json:"username" binding:"required" validate:"min=10,max=20,required"`
+	Password string `json:"password" binding:"required" validate:"min=8,max=20,alphanum,required"`
+	Email    string `json:"email" binding:"required" validate:"email,required"`
+}
+
+type UserUpdateRequest struct {
+	Username string `json:"username" binding:"required" validate:"min=10,max=20"`
+	Email    string `json:"email" binding:"required" validate:"email"`
+}
+
+type UserDetailResponse struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
+func FromEntity(u *entity.User) *UserDetailResponse {
+	return &UserDetailResponse{
+		ID:       u.ID.String(),
+		Username: u.Username,
+		Email:    u.Email,
+	}
+}

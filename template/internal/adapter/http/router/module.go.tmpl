@@ -1,13 +1,13 @@
 package router
 
 import (
-	"{{.Name}}/config"
-	"{{.Name}}/internal/middleware"
-	"{{.Name}}/pkg/graceful"
-	"{{.Name}}/pkg/logger"
-	"{{.Name}}/pkg/swagger"
 	"context"
 	"fmt"
+	"{{.Name}}/config"
+	"{{.Name}}/pkg/graceful"
+	"{{.Name}}/pkg/logger"
+	"{{.Name}}/pkg/middleware"
+	"{{.Name}}/pkg/swagger"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +18,9 @@ import (
 
 type RouterParams struct {
 	fx.In
-	Logger       logger.Logger
+	Logger     logger.Logger
+	AuthRouter *AuthRouter
+	UserRouter *UserRouter
 }
 
 func registerSwaggerHandler(g *gin.Engine) {
@@ -54,11 +56,16 @@ func NewRouter(params RouterParams) *gin.Engine {
 	router.Use(middleware.LoggingMiddleware(params.Logger))
 	router.Use(middleware.ErrorHandlerMiddleware(params.Logger))
 
+	api := router.Group("/api/v1")
+	params.AuthRouter.Register(api)
+	params.UserRouter.Register(api)
+
 	return router
 }
 
 var Module = fx.Options(
+	fx.Provide(NewAuthRouter),
+	fx.Provide(NewUserRouter),
 	fx.Provide(NewRouter),
 	fx.Invoke(registerSwaggerHandler, startServer),
 )
-

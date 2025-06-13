@@ -1,0 +1,21 @@
+package router
+
+import (
+	"{{.Name}}/internal/adapter/http/handler"
+
+	"github.com/gin-gonic/gin"
+)
+
+type AuthRouter struct {
+	authHandler *handler.AuthHandler
+}
+
+func (r *AuthRouter) Register(router *gin.RouterGroup) {
+	auth := router.Group("/auth")
+	auth.POST("/login", r.authHandler.Login)
+	auth.POST("/register", r.authHandler.Register)
+}
+
+func NewAuthRouter(authHandler *handler.AuthHandler) *AuthRouter {
+	return &AuthRouter{authHandler: authHandler}
+}

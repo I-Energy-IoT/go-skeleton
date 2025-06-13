@@ -1,0 +1,15 @@
+package internal
+
+import (
+	"{{.Name}}/internal/adapter"
+	"{{.Name}}/internal/app"
+	"{{.Name}}/internal/infrastructure"
+
+	"go.uber.org/fx"
+)
+
+var Module = fx.Options(
+	infrastructure.Module,
+	app.Module,
+	adapter.Module,
+)

@@ -9,10 +9,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/spf13/cast"
 )
 
-// ExtractToken lấy token từ query params hoặc header Authorization
+// Get token from query params or header Authorization
 func ExtractToken(c *gin.Context) string {
 	token := c.Query("token")
 	if token != "" {
@@ -29,7 +28,7 @@ func ExtractToken(c *gin.Context) string {
 	return ""
 }
 
-// ExtractTokenID phân tích token và gán userID và email vào context
+// ExtractTokenID parse token and set userID and email to context
 func ExtractTokenID(c *gin.Context, config config.JWTConfig) error {
 	tokenString := ExtractToken(c)
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -51,15 +50,26 @@ func ExtractTokenID(c *gin.Context, config config.JWTConfig) error {
 		if len(email) == 0 {
 			return nil
 		}
-		// Set userID và email vào context
+		username := fmt.Sprint(claims[constant.Username])
+		if len(username) == 0 {
+			return nil
+		}
+		roles := fmt.Sprint(claims[constant.Roles])
+		if len(roles) == 0 {
+			return nil
+		}
+
+		// Set userID and email to context
 		c.Set(constant.UserID, userID)
 		c.Set(constant.Email, email)
+		c.Set(constant.Username, username)
+		c.Set(constant.Roles, roles)
 		return nil
 	}
 	return nil
 }
 
-// TokenValid kiểm tra tính hợp lệ của token
+// TokenValid check if token is valid
 func TokenValid(c *gin.Context, config config.JWTConfig) error {
 	err := ExtractTokenID(c, config)
 	if err != nil {
@@ -68,8 +78,8 @@ func TokenValid(c *gin.Context, config config.JWTConfig) error {
 	return nil
 }
 
-// ExtractUserIDFromContext lấy userID từ context
-func ExtractUserIDFromContext(c *gin.Context) int {
+// ExtractUserIDFromContext get userID from context
+func ExtractUserIDFromContext(c *gin.Context) string {
 	val := c.GetString(constant.UserID)
-	return cast.ToInt(val)
+	return val
 }

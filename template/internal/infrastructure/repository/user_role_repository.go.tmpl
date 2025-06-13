@@ -1,0 +1,30 @@
+package repository
+
+import (
+	"{{.Name}}/internal/domain/entity"
+	"{{.Name}}/internal/infrastructure/database"
+)
+
+type userRoleRepository struct {
+	db database.PostgreDB
+}
+
+// Create implements entity.UserRoleRepository.
+func (u *userRoleRepository) Create(userRole *entity.UserRole) error {
+	return u.db.GetDB().Create(userRole).Error
+}
+
+// Delete implements entity.UserRoleRepository.
+func (u *userRoleRepository) Delete(userRole *entity.UserRole) error {
+	return u.db.GetDB().Delete(userRole).Error
+}
+
+// Update implements entity.UserRoleRepository.
+func (u *userRoleRepository) Update(userRole *entity.UserRole) error {
+	return u.db.GetDB().Save(userRole).Error
+}
+
+// Delete implements entity.UserRoleRepository.
+func NewUserRoleRepository(db database.PostgreDB) entity.UserRoleRepository {
+	return &userRoleRepository{db: db}
+}

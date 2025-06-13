@@ -1,0 +1,119 @@
+package handler
+
+import (
+	"{{.Name}}/internal/app/dto"
+	"{{.Name}}/internal/app/service"
+	"{{.Name}}/pkg/errors"
+	"{{.Name}}/pkg/util"
+	"{{.Name}}/pkg/wrapper"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+)
+
+type UserHandler struct {
+	userService service.UserService
+	validate    *validator.Validate
+}
+
+func NewUserHandler(userService service.UserService, validate *validator.Validate) *UserHandler {
+	return &UserHandler{
+		userService: userService,
+		validate:    validate,
+	}
+}
+
+// @Summary Get user by ID
+// @Description Get user by ID
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 200 {object} dto.UserDetailResponse
+// @Failure 400 {object} wrapper.Response
+// @Failure 500 {object} wrapper.Response
+// @Router /users/{id} [get]
+func (h *UserHandler) GetUserByID(c *gin.Context) {
+	id := c.Param("id")
+	response, err := h.userService.GetUserByID(id)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	wrapper.JSONOk(c, response)
+}
+
+// @Summary Update user
+// @Description Update user
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Param updateRequest body dto.UserUpdateRequest true "Update request"
+// @Success 200 {object} dto.UserDetailResponse
+// @Failure 400 {object} wrapper.Response
+// @Failure 500 {object} wrapper.Response
+// @Router /users/{id} [put]
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+	id := c.Param("id")
+	var updateRequest dto.UserUpdateRequest
+	if err := c.ShouldBindJSON(&updateRequest); err != nil {
+		c.Error(errors.NewBadRequestError(err.Error()))
+		return
+	}
+
+	if err := h.validate.Struct(updateRequest); err != nil {
+		c.Error(errors.NewBadRequestError(err.Error()))
+		return
+	}
+
+	response, err := h.userService.UpdateUser(id, &updateRequest)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	wrapper.JSONOk(c, response)
+}
+
+// @Summary Get current user
+// @Description Get current user
+// @Tags User
+// @Accept json
+// @Produce json
+// @Success 200 {object} dto.UserDetailResponse
+// @Failure 400 {object} wrapper.Response
+// @Failure 500 {object} wrapper.Response
+// @Router /users/me [get]
+func (h *UserHandler) Me(c *gin.Context) {
+	id := util.ExtractUserIDFromContext(c)
+	response, err := h.userService.GetUserByID(id)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	wrapper.JSONOk(c, response)
+}
+
+// @Summary Delete user
+// @Description Delete user
+// @Tags User
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 204
+// @Failure 400 {object} wrapper.Response
+// @Failure 500 {object} wrapper.Response
+// @Router /users/{id} [delete]
+func (h *UserHandler) DeleteUser(c *gin.Context) {
+	id := c.Param("id")
+	err := h.userService.DeleteUser(id)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	wrapper.JSONNoContent(c)
+}
