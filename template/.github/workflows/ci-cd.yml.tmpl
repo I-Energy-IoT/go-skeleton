@@ -81,8 +81,8 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: registry.digitalocean.com
-          username: ${{ vars.DO_TOKEN }}
-          password: ${{ vars.DO_TOKEN }}
+          username: {{ "${{ vars.DO_TOKEN }}" }}
+          password: {{ "${{ vars.DO_TOKEN }}" }}
 
       - name: Extract metadata for Docker
         id: meta
@@ -91,14 +91,14 @@ jobs:
           images: registry.digitalocean.com/ienergy-registry/{{.Name}}
           tags: |
             type=sha,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable={{ "{{is_default_branch}}" }}
 
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: {{ "${{ steps.meta.outputs.tags }}" }}
+          labels: {{ "${{ steps.meta.outputs.labels }}" }}
           cache-from: type=gha
           cache-to: type=gha,mode=max 
