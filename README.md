@@ -25,7 +25,7 @@ The generated service follows this structure:
 myservice/
 ├── cmd/                    # Application entry points
 │   ├── app/               # Main application server
-│   |   └── main.go        # Server entry point with dependency injection
+│   │   └── main.go        # Server entry point with dependency injection
 │   └── migrate/           # Database migration tool
 │       └── main.go        # Migration entry point
 ├── config/                # Configuration management
@@ -33,28 +33,34 @@ myservice/
 ├── external/             # External service integrations
 │   └── [service]/        # Each external service in its own directory
 ├── internal/             # Private application code
-│   ├── app/             # Application setup and dependency injection
-│   ├── delivery/        # Interface adapters layer
+│   ├── adapter/         # Interface adapters layer
 │   │   └── http/        # HTTP delivery mechanism
 │   │       ├── handler/ # HTTP request handlers
-│   │       ├── dto/     # Data transfer objects
-│   │       └── router/  # Route definitions and middleware
-│   ├── middleware/      # HTTP middleware components
-│   ├── model/          # Domain models and entities
-│   ├── repository/     # Data access layer
-│   └── service/        # Business logic layer
+│   │       └── router/  # Route definitions
+│   ├── app/             # Application layer
+│   │   ├── constant/    # Application constants
+│   │   ├── dto/         # Application DTOs
+│   │   └── service/     # Application services
+│   ├── domain/          # Domain models and business logic
+│   │   ├── entity/      # Domain entities
+│   │   └── enum/        # Domain enums and constants
+│   └── infrastructure/  # Infrastructure implementations
+│       ├── database/    # Database implementations
+│       └── repository/  # Repository implementations
 ├── pkg/                # Public libraries
 │   ├── constant/       # Shared constants
-│   ├── database/       # Database connection and utilities
 │   ├── errors/         # Custom error types and handling
 │   ├── graceful/       # Graceful shutdown utilities
 │   ├── logger/         # Logging configuration
+│   ├── middleware/     # HTTP middleware components
 │   ├── swagger/        # API documentation
 │   ├── util/           # Common utilities
 │   └── wrapper/        # Response wrappers
-├── test/               # Test suites
-│   └── integration/    # Integration tests
-├── go.mod             # Go module definition
+├── migration/          # Database migration files
+├── test/              # Test suites
+│   └── integration/   # Integration tests
+├── .github/           # GitHub configuration files
+├── go.mod            # Go module definition
 ├── .env              # Environment variables
 ├── Makefile          # Build and development commands
 └── README.md         # Project documentation
