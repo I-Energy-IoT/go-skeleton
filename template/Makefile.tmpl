@@ -1,31 +1,37 @@
-.PHONY: swagger-init swagger-build build run test install-tools lint format init generate-mock migrate-create migrate-up migrate-down migrate-version migrate-force
+.PHONY: swagger-init swagger-build build run test install-tools lint format init generate-mock migrate-create migrate-up migrate-down migrate-down-n migrate-force migrate-drop migrate-goto
+
+include .env
+MIGRATE_DIR := migrations
+CONN_STRING := postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(SSL_MODE)
+APP_DIR := cmd/app
+MOCK_DEST_DIR := internal/infrastructure/repository/mock
+MOCK_SRC_DIR := internal/domain/entity
 
 install-tools:
 	@echo "Installing required tools..."
 	@go install github.com/swaggo/swag/cmd/swag@latest
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@go install golang.org/x/tools/cmd/goimports@latest
-	@go install github.com/stretchr/testify/v2@latest
 	@go install github.com/vektra/mockery/v2@latest
 	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 	@echo "Tools installed successfully!"
 
 swagger-init:
-	swag init -g cmd/app/main.go -o docs/swagger
+	swag init -g $(APP_DIR)/main.go -o docs/swagger
 
 swagger-build:
 	swag fmt
-	swag init -g cmd/app/main.go -o docs/swagger
+	swag init -g $(APP_DIR)/main.go -o docs/swagger
 
 init:
 	go mod tidy
 	go mod download
 
 build:
-	go build -o bin/app ./cmd/app/main.go
+	go build -o bin/app $(APP_DIR)/main.go
 
 run:
-	bin/app api
+	bin/app
 
 test:
 	go test -v ./...
@@ -37,22 +43,33 @@ lint:
 	golangci-lint run ./...
 
 generate-mock:
-	mockery --all --dir ./internal/model/entity --output ./internal/mock --case snake
+	mockery --all --dir $(MOCK_SRC_DIR) --output $(MOCK_DEST_DIR) --case snake
+	go mod tidy
 
-# Migration commands
+# Create a new migration (make migrate-create NAME=profiles)
 migrate-create:
-	@read -p "Enter migration name: " name; \
-	migrate create -ext sql -dir migrations -seq $$name
+	migrate create -ext sql -dir $(MIGRATE_DIR) -seq $(NAME)
 
+# Run all pending migration (make migrate-up)
 migrate-up:
-	go run cmd/migrate/main.go -up
+	migrate -path $(MIGRATE_DIR) -database "$(CONN_STRING)" up
 
+# Rollback the last migration
 migrate-down:
-	go run cmd/migrate/main.go -down
+	migrate -path $(MIGRATE_DIR) -database "$(CONN_STRING)" down 1
 
-migrate-version:
-	go run cmd/migrate/main.go -version
+# Rollback N migrations
+migrate-down-n:
+	migrate -path $(MIGRATE_DIR) -database "$(CONN_STRING)" down $(N)
 
+# Force migration version (use with caution example: make migrate-force VERSION=1) 
 migrate-force:
-	@read -p "Enter version to force: " version; \
-	go run cmd/migrate/main.go -force $$version
+	migrate -path $(MIGRATE_DIR) -database "$(CONN_STRING)" force $(VERSION)
+
+# Drop everything (include schema migration)
+migrate-drop:
+	migrate -path $(MIGRATE_DIR) -database "$(CONN_STRING)" drop
+
+# Apply specific migration version (make migrate-goto VERSION=1)
+migrate-goto:
+	migrate -path $(MIGRATE_DIR) -database "$(CONN_STRING)" goto $(VERSION)

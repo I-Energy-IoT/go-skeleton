@@ -1,19 +1,11 @@
 package router
 
 import (
-	"context"
-	"fmt"
-	"{{.Name}}/config"
-	"{{.Name}}/pkg/graceful"
+	"{{.Name}}/internal/app/middleware"
 	"{{.Name}}/pkg/logger"
-	"{{.Name}}/pkg/middleware"
-	"{{.Name}}/pkg/swagger"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/cast"
 	"go.uber.org/fx"
-	"go.uber.org/zap"
 )
 
 type RouterParams struct {
@@ -21,32 +13,6 @@ type RouterParams struct {
 	Logger     logger.Logger
 	AuthRouter *AuthRouter
 	UserRouter *UserRouter
-}
-
-func registerSwaggerHandler(g *gin.Engine) {
-	swaggerAPI := g.Group("/swagger")
-	swag := swagger.NewSwagger()
-	swaggerAPI.Use(swag.SwaggerHandler(false))
-	swag.Register(swaggerAPI)
-}
-
-func startServer(g *gin.Engine, lifecycle fx.Lifecycle, logger logger.Logger, config *config.Config) {
-	gracefulService := graceful.NewService(graceful.WithStopTimeout(time.Second), graceful.WithWaitTime(time.Second))
-	gracefulService.Register(g)
-	lifecycle.Append(
-		fx.Hook{
-			OnStart: func(context.Context) error {
-				port := fmt.Sprintf("%d", cast.ToInt(config.Server.Port))
-				logger.Info("run on port:", zap.String("port", port))
-				go gracefulService.StartServer(g, port)
-				return nil
-			},
-			OnStop: func(context.Context) error {
-				gracefulService.Close(logger)
-				return nil
-			},
-		},
-	)
 }
 
 func NewRouter(params RouterParams) *gin.Engine {
@@ -67,5 +33,4 @@ var Module = fx.Options(
 	fx.Provide(NewAuthRouter),
 	fx.Provide(NewUserRouter),
 	fx.Provide(NewRouter),
-	fx.Invoke(registerSwaggerHandler, startServer),
 )
