@@ -56,3 +56,11 @@ func NewErrorResponse(err *errors.AppError) *Response {
 func JSONOk(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, NewSuccessResponse(data))
 }
+
+func JSONCreated(c *gin.Context, data interface{}) {
+	c.JSON(http.StatusCreated, NewSuccessResponse(data))
+}
+
+func JSONNoContent(c *gin.Context) {
+	c.JSON(http.StatusNoContent, nil)
+}

@@ -45,7 +45,10 @@ func NewService(opts ...Option) Service {
 
 func (s *service) Register(r *gin.Engine) {
 	r.GET("/health", func(c *gin.Context) {
-		c.String(http.StatusOK, "GREEN")
+		c.String(http.StatusOK, "OK")
+	})
+	r.GET("/ready", func(c *gin.Context) {
+		c.String(http.StatusOK, "OK")
 	})
 }
 

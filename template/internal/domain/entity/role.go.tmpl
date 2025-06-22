@@ -1,0 +1,27 @@
+package entity
+
+import (
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+type Role struct {
+	ID    uuid.UUID  `gorm:"primaryKey"`
+	Name  string     `gorm:"unique;not null"`
+	Users []UserRole `gorm:"foreignKey:RoleID;references:ID;constraint:OnDelete:CASCADE"`
+}
+
+func (r *Role) TableName() string {
+	return "roles"
+}
+
+func (r *Role) BeforeCreate(tx *gorm.DB) (err error) {
+	r.ID = uuid.New()
+	return nil
+}
+
+type RoleRepository interface {
+	Create(role *Role) error
+	Delete(role *Role) error
+	GetByName(name string) (*Role, error)
+}

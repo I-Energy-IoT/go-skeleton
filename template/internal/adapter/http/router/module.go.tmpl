@@ -1,0 +1,36 @@
+package router
+
+import (
+	"{{.Name}}/internal/app/middleware"
+	"{{.Name}}/pkg/logger"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/fx"
+)
+
+type RouterParams struct {
+	fx.In
+	Logger     logger.Logger
+	AuthRouter *AuthRouter
+	UserRouter *UserRouter
+}
+
+func NewRouter(params RouterParams) *gin.Engine {
+	router := gin.Default()
+
+	router.Use(middleware.CorsMiddleware())
+	router.Use(middleware.LoggingMiddleware(params.Logger))
+	router.Use(middleware.ErrorHandlerMiddleware(params.Logger))
+
+	api := router.Group("/api/v1")
+	params.AuthRouter.Register(api)
+	params.UserRouter.Register(api)
+
+	return router
+}
+
+var Module = fx.Options(
+	fx.Provide(NewAuthRouter),
+	fx.Provide(NewUserRouter),
+	fx.Provide(NewRouter),
+)

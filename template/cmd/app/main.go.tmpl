@@ -1,20 +1,58 @@
 package main
 
 import (
+	"context"
 	"{{.Name}}/config"
-	"{{.Name}}/internal/app"
-	"{{.Name}}/pkg/database"
+	"{{.Name}}/external"
+	"{{.Name}}/internal"
+	"{{.Name}}/pkg/graceful"
 	"{{.Name}}/pkg/logger"
+	"{{.Name}}/pkg/swagger"
+	"fmt"
+	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/cast"
 	"go.uber.org/fx"
+	"go.uber.org/fx/fxevent"
+	"go.uber.org/zap"
 )
+
+func registerSwaggerHandler(g *gin.Engine) {
+	swaggerAPI := g.Group("/swagger")
+	swag := swagger.NewSwagger()
+	swaggerAPI.Use(swag.SwaggerHandler(false))
+	swag.Register(swaggerAPI)
+}
+
+func startServer(g *gin.Engine, lifecycle fx.Lifecycle, logger logger.Logger, config *config.Config) {
+	gracefulService := graceful.NewService(graceful.WithStopTimeout(time.Second), graceful.WithWaitTime(time.Second))
+	gracefulService.Register(g)
+	lifecycle.Append(
+		fx.Hook{
+			OnStart: func(context.Context) error {
+				port := fmt.Sprintf("%d", cast.ToInt(config.Server.Port))
+				logger.Info("run on port:", zap.String("port", port))
+				go gracefulService.StartServer(g, port)
+				return nil
+			},
+			OnStop: func(context.Context) error {
+				gracefulService.Close(logger)
+				return nil
+			},
+		},
+	)
+}
 
 func main() {
 	fx.New(
 		config.Module,
-		fx.Provide(database.NewPostgreDB),
-		fx.Invoke(database.RunPostgreDB),
-		app.Module,
 		logger.Module,
+		external.Module,
+		internal.Module,
+		fx.WithLogger(func(log logger.Logger) fxevent.Logger {
+			return log
+		}),
+		fx.Invoke(registerSwaggerHandler, startServer),
 	).Run()
 }

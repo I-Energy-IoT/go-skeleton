@@ -1,0 +1,33 @@
+package entity
+
+import (
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+type User struct {
+	ID       uuid.UUID  `gorm:"primaryKey"`
+	Username string     `gorm:"unique;not null"`
+	Password string     `gorm:"not null"`
+	Email    string     `gorm:"unique;not null"`
+	Role     []UserRole `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
+	BaseEntity
+}
+
+func (u *User) TableName() string {
+	return "users"
+}
+
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	u.ID = uuid.New()
+	return
+}
+
+type UserRepository interface {
+	Create(user *User, createdBy string) error
+	Update(user *User, updatedBy string) error
+	Delete(user *User, deletedBy string) error
+	GetByID(id uuid.UUID) (*User, error)
+	GetByUsername(username string) (*User, error)
+	GetRoleByUserID(userID string) ([]string, error)
+}

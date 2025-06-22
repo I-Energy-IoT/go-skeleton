@@ -1,0 +1,93 @@
+package handler
+
+import (
+	"{{.Name}}/internal/app/dto"
+	"{{.Name}}/internal/app/service"
+	"{{.Name}}/pkg/errors"
+	"{{.Name}}/pkg/wrapper"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+)
+
+type AuthHandler struct {
+	userService service.UserService
+	jwtService  service.JwtService
+	validate    *validator.Validate
+}
+
+func NewAuthHandler(userService service.UserService, jwtService service.JwtService, validate *validator.Validate) *AuthHandler {
+	return &AuthHandler{
+		userService: userService,
+		jwtService:  jwtService,
+		validate:    validate,
+	}
+}
+
+// @Summary Login
+// @Description Login to the system
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param loginRequest body dto.LoginRequest true "Login request"
+// @Success 200 {object} dto.LoginResponse
+// @Failure 400 {object} wrapper.Response
+// @Failure 500 {object} wrapper.Response
+// @Router /auth/login [post]
+func (h *AuthHandler) Login(c *gin.Context) {
+	var loginRequest dto.LoginRequest
+	if err := c.ShouldBindJSON(&loginRequest); err != nil {
+		c.Error(errors.NewBadRequestError(err.Error()))
+		return
+	}
+
+	if err := h.validate.Struct(loginRequest); err != nil {
+		c.Error(errors.NewBadRequestError(err.Error()))
+		return
+	}
+
+	user, err := h.userService.ValidateUser(&loginRequest)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	response, err := h.jwtService.GenerateToken(user)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	wrapper.JSONOk(c, response)
+}
+
+// @Summary Register
+// @Description Register a new user
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param registerRequest body dto.UserCreateRequest true "Register request"
+// @Success 201 {object} dto.UserDetailResponse
+// @Failure 400 {object} wrapper.Response
+// @Failure 500 {object} wrapper.Response
+// @Router /auth/register [post]
+func (h *AuthHandler) Register(c *gin.Context) {
+	var registerRequest dto.UserCreateRequest
+	if err := c.ShouldBindJSON(&registerRequest); err != nil {
+		c.Error(errors.NewBadRequestError(err.Error()))
+		return
+	}
+
+	if err := h.validate.Struct(registerRequest); err != nil {
+		c.Error(errors.NewBadRequestError(err.Error()))
+		return
+	}
+
+	response, err := h.userService.CreateUser(&registerRequest)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	wrapper.JSONCreated(c, response)
+}

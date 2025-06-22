@@ -1,0 +1,66 @@
+package service
+
+import (
+	"{{.Name}}/config"
+	"{{.Name}}/internal/app/dto"
+	"{{.Name}}/internal/domain/entity"
+	"{{.Name}}/pkg/constant"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"go.uber.org/fx"
+)
+
+type JwtService interface {
+	GenerateToken(user *dto.UserDetailResponse) (dto.LoginResponse, error)
+}
+
+type jwtService struct {
+	config         *config.Config
+	userRepository entity.UserRepository
+}
+
+// GenerateToken implements JwtService.
+func (j *jwtService) GenerateToken(user *dto.UserDetailResponse) (dto.LoginResponse, error) {
+	duration, err := time.ParseDuration(j.config.JWT.ExpirationTime)
+	if err != nil {
+		return dto.LoginResponse{}, err
+	}
+
+	userRoles, err := j.userRepository.GetRoleByUserID(user.ID)
+	if err != nil {
+		return dto.LoginResponse{}, err
+	}
+
+	claims := jwt.MapClaims{
+		constant.UserID:     user.ID,
+		constant.Email:      user.Email,
+		constant.Username:   user.Username,
+		constant.Roles:      userRoles,
+		constant.ExpireDate: time.Now().Add(duration * time.Minute).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	tokenString, err := token.SignedString([]byte(j.config.JWT.Secret))
+	if err != nil {
+		return dto.LoginResponse{}, err
+	}
+
+	return dto.LoginResponse{
+		Token: tokenString,
+	}, nil
+}
+
+type jwtServiceParams struct {
+	fx.In
+	Config         *config.Config
+	UserRepository entity.UserRepository
+}
+
+func NewJwtService(params jwtServiceParams) JwtService {
+	return &jwtService{
+		config:         params.Config,
+		userRepository: params.UserRepository,
+	}
+}
