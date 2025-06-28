@@ -1,5 +1,5 @@
 # go-skeleton
-Skeleton for golang project include tools for scafoding code with full strucure for I-energy iot project
+Skeleton for golang project with tools for scaffolding code with full structure for I-Energy IoT project
 
 ## Features
 
@@ -10,6 +10,9 @@ Skeleton for golang project include tools for scafoding code with full strucure 
 - Integrated logging, configuration, and database support
 - Ready-to-use HTTP server with middleware
 - Swagger documentation setup
+- JWT authentication and authorization
+- Database migrations with PostgreSQL support
+- Comprehensive testing setup with mocks
 
 ## Installation
 
@@ -24,10 +27,8 @@ The generated service follows this structure:
 ```
 myservice/
 ├── cmd/                    # Application entry points
-│   ├── app/               # Main application server
-│   │   └── main.go        # Server entry point with dependency injection
-│   └── migrate/           # Database migration tool
-│       └── main.go        # Migration entry point
+│   └── app/               # Main application server
+│        └── main.go        # Server entry point with dependency injection
 ├── config/                # Configuration management
 │   └── config.go         # Environment and app configuration loader
 ├── external/             # External service integrations
@@ -40,6 +41,7 @@ myservice/
 │   ├── app/             # Application layer
 │   │   ├── constant/    # Application constants
 │   │   ├── dto/         # Application DTOs
+│   │   ├── middleware/  # Application middlewares
 │   │   └── service/     # Application services
 │   ├── domain/          # Domain models and business logic
 │   │   ├── entity/      # Domain entities
@@ -52,11 +54,10 @@ myservice/
 │   ├── errors/         # Custom error types and handling
 │   ├── graceful/       # Graceful shutdown utilities
 │   ├── logger/         # Logging configuration
-│   ├── middleware/     # HTTP middleware components
 │   ├── swagger/        # API documentation
 │   ├── util/           # Common utilities
 │   └── wrapper/        # Response wrappers
-├── migration/          # Database migration files
+├── migrations/          # Database migration files
 ├── test/              # Test suites
 │   └── integration/   # Integration tests
 ├── .github/           # GitHub configuration files
@@ -68,8 +69,8 @@ myservice/
 
 ## Requirements
 
-- Go 1.21 or higher
-- PostgreSQL 15 or higher (Can change)
+- Go 1.24 or higher
+- PostgreSQL 15 or higher (configurable)
 - Git
 
 ## Getting Started
@@ -116,33 +117,51 @@ make run
 ## Development
 
 ### Testing
-- To create the mock service/repo define with syntax mock at interfaces:
+- To create mocks for services/repositories, define interfaces with `//go:generate mockgen` comments:
 ```bash
 make generate-mock
 ```
 - To create unit tests:
-  1. Click right mouse
-  2. Choose Go:Generate Unit Tests For Function
-  3. Complete your testcase
+  1. Right-click on the interface
+  2. Choose "Go: Generate Unit Tests For File"
+  3. Complete your test cases
 
 ### Code Generation
 - Generate mocks: `make generate-mock`
 - Generate Swagger docs: `make swagger-build`
 
+### Database Operations
+- Create migration: `make migrate-create name=migration_name`
+- Apply migrations: `make migrate-up`
+- Revert migrations: `make migrate-down`
+- Check migration version: `make migrate-version`
+- Force migration: `make migrate-force version=1`
+
 ### Available Make Commands
 
-- `make init` - Initialize project and install dependencies
-- `make install-tools` - Install required development tools
-- `make build` - Build the service
-- `make run` - Run the service
-- `make test` - Run tests
-- `make fmt` - Format code
-- `make lint` - Run linters
-- `make swagger-init` - Generate Swagger documentation
-- `make swagger-build` - Update Swagger documentation
-- `make generate-mock` - Generate mocks
-- `make migrate-create` - Create migration file
-- `make migrate-up` - Apply migration
-- `make migrate-down` - Revert migration
-- `make migrate-version` - Get version migration
-- `make migrate-force` - Force migrate
+| Command | Description |
+|---------|-------------|
+| `make init` | Initialize project and install dependencies |
+| `make install-tools` | Install required development tools |
+| `make build` | Build the service |
+| `make run` | Run the service |
+| `make test` | Run tests |
+| `make fmt` | Format code |
+| `make lint` | Run linters |
+| `make swagger-init` | Generate Swagger documentation |
+| `make swagger-build` | Update Swagger documentation |
+| `make generate-mock` | Generate mocks |
+| `make migrate-create` | Create migration file |
+| `make migrate-up` | Apply migration |
+| `make migrate-down` | Revert migration |
+| `make migrate-version` | Get migration version |
+| `make migrate-force` | Force migrate |
+
+## Architecture
+
+This skeleton follows Clean Architecture principles with the following layers:
+
+- **Domain Layer**: Contains business entities and core business logic
+- **Application Layer**: Contains use cases and application services
+- **Adapter Layer**: Contains HTTP handlers and external service adapters
+- **Infrastructure Layer**: Contains database implementations and external integrations
