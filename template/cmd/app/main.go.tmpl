@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"time"
+
 	"{{.Name}}/config"
 	"{{.Name}}/external"
 	"{{.Name}}/internal"
 	"{{.Name}}/pkg/graceful"
 	"{{.Name}}/pkg/logger"
 	"{{.Name}}/pkg/swagger"
-	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
@@ -18,26 +19,47 @@ import (
 	"go.uber.org/zap"
 )
 
-func registerSwaggerHandler(g *gin.Engine) {
+// setupSwaggerHandler sets up Swagger documentation endpoints
+func setupSwaggerHandler(g *gin.Engine) {
 	swaggerAPI := g.Group("/swagger")
 	swag := swagger.NewSwagger()
 	swaggerAPI.Use(swag.SwaggerHandler(false))
 	swag.Register(swaggerAPI)
 }
 
+// startServer initializes and starts the HTTP server
 func startServer(g *gin.Engine, lifecycle fx.Lifecycle, logger logger.Logger, config *config.Config) {
-	gracefulService := graceful.NewService(graceful.WithStopTimeout(time.Second), graceful.WithWaitTime(time.Second))
+	gracefulService := graceful.NewService(
+		graceful.WithStopTimeout(time.Second*30),
+		graceful.WithWaitTime(time.Second*10),
+	)
 	gracefulService.Register(g)
+
 	lifecycle.Append(
 		fx.Hook{
-			OnStart: func(context.Context) error {
-				port := fmt.Sprintf("%d", cast.ToInt(config.Server.Port))
-				logger.Info("run on port:", zap.String("port", port))
-				go gracefulService.StartServer(g, port)
+			OnStart: func(ctx context.Context) error {
+				port := cast.ToString(config.Server.Port)
+				if port == "" {
+					port = "8080"
+				}
+				
+				logger.WithField("port", port).Info("Starting server")
+				
+				if err := gracefulService.StartServer(g, port); err != nil {
+					logger.Error("Failed to start server", zap.Error(err))
+					return fmt.Errorf("failed to start server: %w", err)
+				}
+				
+				logger.Info("Server started successfully")
 				return nil
 			},
-			OnStop: func(context.Context) error {
-				gracefulService.Close(logger)
+			OnStop: func(ctx context.Context) error {
+				logger.Info("Stopping server")
+				if err := gracefulService.Close(logger); err != nil {
+					logger.Error("Failed to close server gracefully", zap.Error(err))
+					return fmt.Errorf("failed to close server: %w", err)
+				}
+				logger.Info("Server stopped successfully")
 				return nil
 			},
 		},
@@ -45,7 +67,7 @@ func startServer(g *gin.Engine, lifecycle fx.Lifecycle, logger logger.Logger, co
 }
 
 func main() {
-	fx.New(
+	app := fx.New(
 		config.Module,
 		logger.Module,
 		external.Module,
@@ -53,6 +75,8 @@ func main() {
 		fx.WithLogger(func(log logger.Logger) fxevent.Logger {
 			return log
 		}),
-		fx.Invoke(registerSwaggerHandler, startServer),
-	).Run()
+		fx.Invoke(setupSwaggerHandler, startServer),
+	)
+
+	app.Run()
 }

@@ -1,12 +1,7 @@
 package app
 
 import (
-	"{{.Name}}/internal/app/service"
-
 	"go.uber.org/fx"
 )
 
-var Module = fx.Options(
-	fx.Provide(service.NewUserService),
-	fx.Provide(service.NewJwtService),
-)
+var Module = fx.Options()

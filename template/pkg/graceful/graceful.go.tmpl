@@ -10,79 +10,162 @@ import (
 	"{{.Name}}/pkg/logger"
 
 	"github.com/gin-gonic/gin"
-	"github.com/opentracing/opentracing-go/log"
+	"go.uber.org/zap"
 )
 
 const (
-	TimeOutDefault  = 10 * time.Second
+	// TimeOutDefault is the default timeout for graceful shutdown
+	TimeOutDefault = 10 * time.Second
+	// DefaultWaitTime is the default wait time before shutdown
 	DefaultWaitTime = 10 * time.Second
 )
 
+// Service defines the interface for graceful shutdown operations
+type Service interface {
+	// Register sets up health check endpoints on the gin engine
+	Register(g *gin.Engine)
+	// StartServer starts the HTTP server on the specified port
+	StartServer(handler http.Handler, port string) error
+	// Close gracefully shuts down the service
+	Close(logger logger.Logger) error
+	// SignalStop signals the service to stop (for external shutdown signals)
+	SignalStop(logger logger.Logger) error
+}
+
+// service implements the Service interface
 type service struct {
 	currentStatus int
 	waitTime      time.Duration
 	timeout       time.Duration
-	server        http.Server
+	server        *http.Server
+	done          chan struct{}
 }
 
-type Service interface {
-	Register(g *gin.Engine)
-	StartServer(handler http.Handler, port string)
-	Close(logger logger.Logger)
-}
-
+// NewService creates a new graceful shutdown service with the given options
 func NewService(opts ...Option) Service {
-	o := &opt{waitTime: DefaultWaitTime, stopTimeout: TimeOutDefault}
-	for _, opt := range opts {
-		opt.apply(o)
+	o := &opt{
+		waitTime:    DefaultWaitTime,
+		stopTimeout: TimeOutDefault,
 	}
+	
+	// Apply options with error handling
+	for _, opt := range opts {
+		if err := opt.apply(o); err != nil {
+			// In a real application, you might want to log this error
+			// For now, we'll use the default values
+			continue
+		}
+	}
+	
 	return &service{
 		currentStatus: http.StatusOK,
 		waitTime:      o.waitTime,
 		timeout:       o.stopTimeout,
+		done:          make(chan struct{}),
 	}
 }
 
+// Register sets up health check endpoints
 func (s *service) Register(r *gin.Engine) {
+	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
-		c.String(http.StatusOK, "OK")
+		c.JSON(http.StatusOK, gin.H{
+			"status": "healthy",
+			"time":   time.Now().UTC().Format(time.RFC3339),
+		})
 	})
+	
+	// Readiness check endpoint
 	r.GET("/ready", func(c *gin.Context) {
-		c.String(http.StatusOK, "OK")
+		c.JSON(http.StatusOK, gin.H{
+			"status": "ready",
+			"time":   time.Now().UTC().Format(time.RFC3339),
+		})
+	})
+	
+	// Liveness check endpoint
+	r.GET("/live", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status": "alive",
+			"time":   time.Now().UTC().Format(time.RFC3339),
+		})
 	})
 }
 
-func (s *service) StartServer(handler http.Handler, port string) {
-	s.server = http.Server{
+// StartServer starts the HTTP server
+func (s *service) StartServer(handler http.Handler, port string) error {
+	if port == "" {
+		return errors.New("port cannot be empty")
+	}
+	
+	s.server = &http.Server{
 		Addr:              ":" + port,
 		Handler:           handler,
-		ReadHeaderTimeout: TimeOutDefault,
+		ReadHeaderTimeout: s.timeout,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
-	if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Error(fmt.Errorf("failed to listen and serve from server: %v", err))
-	}
+	
+	// Start server in a goroutine
+	go func() {
+		if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			// Log the error but don't panic
+			fmt.Printf("Server error: %v\n", err)
+		}
+	}()
+	
+	return nil
 }
 
-func (s *service) stopServer(logger logger.Logger) {
+// stopServer gracefully shuts down the HTTP server
+func (s *service) stopServer(logger logger.Logger) error {
+	if s.server == nil {
+		return errors.New("server not initialized")
+	}
+	
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
+	
 	if err := s.server.Shutdown(ctx); err != nil {
-		log.Error(fmt.Errorf("server shutdown error: %v", err))
-		return
+		logger.Error("server shutdown error", zap.Error(err))
+		return fmt.Errorf("failed to shutdown server: %w", err)
 	}
-	logger.Info("stop server success")
+	
+	logger.Info("server stopped successfully")
+	return nil
 }
 
-func (s *service) Close(logger logger.Logger) {
-	logger.Info("set ping status to 503")
+// Close gracefully shuts down the service
+func (s *service) Close(logger logger.Logger) error {
+	logger.Info("initiating graceful shutdown")
+	
+	// Set status to unavailable
 	s.currentStatus = http.StatusServiceUnavailable
-	time.Sleep(s.waitTime)
-	s.stopServer(logger)
-	logger.Info("server exited...")
+	
+	// Wait for the specified time to allow ongoing requests to complete
+	select {
+	case <-time.After(s.waitTime):
+		logger.Info("wait time completed, proceeding with shutdown")
+	case <-s.done:
+		logger.Info("shutdown signal received")
+	}
+	
+	return s.stopServer(logger)
 }
 
-func (s *service) SignalStop(logger logger.Logger) {
-	logger.Info("set ping status to 503")
+// SignalStop signals the service to stop (for external shutdown signals)
+func (s *service) SignalStop(logger logger.Logger) error {
+	logger.Info("received shutdown signal")
 	s.currentStatus = http.StatusServiceUnavailable
-	time.Sleep(s.waitTime)
+	
+	// Signal the done channel
+	select {
+	case s.done <- struct{}{}:
+		logger.Info("shutdown signal sent")
+	default:
+		logger.Warn("shutdown signal channel is full")
+	}
+	
+	return nil
 }

@@ -11,17 +11,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/lib/pq"
-	"go.uber.org/zap"
 )
 
+// ErrorHandlerMiddleware provides centralized error handling for HTTP requests
 func ErrorHandlerMiddleware(logger logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				logger.Error("panic recovered",
-					zap.Any("error", err),
-					zap.String("stack", string(debug.Stack())),
-				)
+				logger.WithContext(c.Request.Context()).
+					WithError(err.(error)).
+					WithField("stack", string(debug.Stack())).
+					WithField("path", c.Request.URL.Path).
+					WithField("method", c.Request.Method).
+					Error("panic recovered")
 				c.JSON(http.StatusInternalServerError, wrapper.NewErrorResponse(
 					errors.NewInternalServerError("Internal server error"),
 				))
@@ -37,34 +39,47 @@ func ErrorHandlerMiddleware(logger logger.Logger) gin.HandlerFunc {
 			}
 			err := lastErr.Err
 
-			logger.Error("request error", zap.Any("error", err))
+			logger.WithContext(c.Request.Context()).
+				WithError(err).
+				WithField("path", c.Request.URL.Path).
+				WithField("method", c.Request.Method).
+				Error("request error")
 
 			// Handle different types of errors
 			switch e := err.(type) {
 			case *errors.AppError:
 				c.JSON(e.Status, wrapper.NewErrorResponse(e))
 			case validator.ValidationErrors:
-				if len(e) > 0 {
-					c.JSON(http.StatusBadRequest, wrapper.NewErrorResponse(
-						errors.NewBadRequestError("validation error"),
-					))
-				} else {
-					c.JSON(http.StatusBadRequest, wrapper.NewErrorResponse(
-						errors.NewBadRequestError("invalid request"),
-					))
-				}
+				handleValidationErrors(c, e, logger)
 			case *pq.Error:
 				handleDatabaseError(c, e, logger)
 			default:
 				c.JSON(http.StatusInternalServerError, wrapper.NewErrorResponse(
-					errors.NewInternalServerError(e.Error()),
+					errors.NewInternalServerError("Internal server error"),
 				))
 			}
 		}
 	}
 }
 
-// handleDatabaseError handles database specific errors
+// handleValidationErrors processes validation errors
+func handleValidationErrors(c *gin.Context, err validator.ValidationErrors, logger logger.Logger) {
+	if len(err) > 0 {
+		logger.WithContext(c.Request.Context()).
+			WithError(err).
+			WithField("path", c.Request.URL.Path).
+			Error("validation error")
+		c.JSON(http.StatusBadRequest, wrapper.NewErrorResponse(
+			errors.NewBadRequestError("validation error"),
+		))
+	} else {
+		c.JSON(http.StatusBadRequest, wrapper.NewErrorResponse(
+			errors.NewBadRequestError("invalid request"),
+		))
+	}
+}
+
+// handleDatabaseError processes database-specific errors
 func handleDatabaseError(c *gin.Context, err *pq.Error, logger logger.Logger) {
 	if err == nil {
 		c.JSON(http.StatusInternalServerError, wrapper.NewErrorResponse(
@@ -83,7 +98,11 @@ func handleDatabaseError(c *gin.Context, err *pq.Error, logger logger.Logger) {
 			errors.NewBadRequestError("invalid reference"),
 		))
 	default:
-		logger.Error("database error", zap.Any("error", err))
+		logger.WithContext(c.Request.Context()).
+			WithError(err).
+			WithField("code", string(err.Code)).
+			WithField("path", c.Request.URL.Path).
+			Error("database error")
 		c.JSON(http.StatusInternalServerError, wrapper.NewErrorResponse(
 			errors.NewInternalServerError("database error"),
 		))

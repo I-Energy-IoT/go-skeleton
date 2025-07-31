@@ -1,0 +1,258 @@
+package authentication
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"{{.Name}}/config"
+	"{{.Name}}/pkg/errors"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+)
+
+// ContextKey represents a context key type
+type ContextKey string
+
+// Claims represents JWT claims
+type Claims struct {
+	UserID   string `json:"user_id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Roles    string `json:"roles"`
+	jwt.RegisteredClaims
+}
+
+const (
+	// ClaimUserID represents the user ID claim key
+	ClaimUserID = "user_id"
+	// ClaimEmail represents the email claim key
+	ClaimEmail = "email"
+	// ClaimUsername represents the username claim key
+	ClaimUsername = "username"
+	// ClaimRoles represents the roles claim key
+	ClaimRoles = "roles"
+
+	// UserID represents the user ID context key
+	UserID ContextKey = "user_id"
+	// Email represents the email context key
+	Email ContextKey = "email"
+	// Username represents the username context key
+	Username ContextKey = "username"
+	// Roles represents the roles context key
+	Roles ContextKey = "roles"
+)
+
+// ExtractToken extracts the JWT token from the request
+func ExtractToken(c *gin.Context) string {
+	// Check query parameter first
+	if token := c.Query("token"); token != "" {
+		return token
+	}
+
+	// Check Authorization header
+	bearerToken := c.Request.Header.Get("Authorization")
+	if bearerToken == "" {
+		return ""
+	}
+
+	// Parse Bearer token
+	tokenParts := strings.Split(bearerToken, " ")
+	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+		return ""
+	}
+
+	return tokenParts[1]
+}
+
+// parseToken parses and validates a JWT token
+func parseToken(tokenString string, secret string) (*jwt.Token, error) {
+	if tokenString == "" {
+		return nil, errors.NewBadRequestError("token cannot be empty")
+	}
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse token: %w", err)
+	}
+
+	return token, nil
+}
+
+// validateToken validates the JWT token
+func validateToken(token *jwt.Token) (jwt.MapClaims, error) {
+	if !token.Valid {
+		return nil, errors.NewUnauthorizedError("invalid token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.NewUnauthorizedError("invalid token claims")
+	}
+
+	return claims, nil
+}
+
+// extractClaims extracts claims from JWT token
+func extractClaims(claims jwt.MapClaims) (*Claims, error) {
+	userID, ok := claims[ClaimUserID].(string)
+	if !ok || userID == "" {
+		return nil, errors.NewUnauthorizedError("invalid user ID in token")
+	}
+
+	email, ok := claims[ClaimEmail].(string)
+	if !ok || email == "" {
+		return nil, errors.NewUnauthorizedError("invalid email in token")
+	}
+
+	username, ok := claims[ClaimUsername].(string)
+	if !ok || username == "" {
+		return nil, errors.NewUnauthorizedError("invalid username in token")
+	}
+
+	roles, ok := claims[ClaimRoles].(string)
+	if !ok || roles == "" {
+		return nil, errors.NewUnauthorizedError("invalid roles in token")
+	}
+
+	return &Claims{
+		UserID:   userID,
+		Email:    email,
+		Username: username,
+		Roles:    roles,
+	}, nil
+}
+
+// addClaimsToContext adds claims to the request context
+func addClaimsToContext(c *gin.Context, claims *Claims) {
+	ctx := context.WithValue(c.Request.Context(), UserID, claims.UserID)
+	ctx = context.WithValue(ctx, Email, claims.Email)
+	ctx = context.WithValue(ctx, Username, claims.Username)
+	ctx = context.WithValue(ctx, Roles, claims.Roles)
+
+	c.Request = c.Request.WithContext(ctx)
+}
+
+// ExtractTokenID extracts and validates the JWT token from the request
+func ExtractTokenID(c *gin.Context, config config.JWTConfig) error {
+	tokenString := ExtractToken(c)
+	if tokenString == "" {
+		return errors.NewUnauthorizedError("no token provided")
+	}
+
+	token, err := parseToken(tokenString, config.Secret)
+	if err != nil {
+		return fmt.Errorf("token parsing failed: %w", err)
+	}
+
+	claims, err := validateToken(token)
+	if err != nil {
+		return fmt.Errorf("token validation failed: %w", err)
+	}
+
+	userClaims, err := extractClaims(claims)
+	if err != nil {
+		return fmt.Errorf("claims extraction failed: %w", err)
+	}
+
+	addClaimsToContext(c, userClaims)
+
+	return nil
+}
+
+// TokenValid validates the JWT token in the request
+func TokenValid(c *gin.Context, config config.JWTConfig) error {
+	return ExtractTokenID(c, config)
+}
+
+// GenerateToken generates a new JWT token
+func GenerateToken(claims *Claims, config config.JWTConfig) (string, error) {
+	if claims.UserID == "" {
+		return "", errors.NewBadRequestError("user ID cannot be empty")
+	}
+
+	if claims.Email == "" {
+		return "", errors.NewBadRequestError("email cannot be empty")
+	}
+
+	if claims.Username == "" {
+		return "", errors.NewBadRequestError("username cannot be empty")
+	}
+
+	if claims.Roles == "" {
+		return "", errors.NewBadRequestError("roles cannot be empty")
+	}
+
+	// Set expiration time
+	claims.RegisteredClaims = jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(config.ExpirationTime)),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		NotBefore: jwt.NewNumericDate(time.Now()),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(config.Secret))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+
+	return tokenString, nil
+}
+
+// ExtractUserIDFromContext extracts user ID from the request context
+func ExtractUserIDFromContext(c *gin.Context) string {
+	return c.GetString(string(UserID))
+}
+
+// ExtractEmailFromContext extracts email from the request context
+func ExtractEmailFromContext(c *gin.Context) string {
+	return c.GetString(string(Email))
+}
+
+// ExtractUsernameFromContext extracts username from the request context
+func ExtractUsernameFromContext(c *gin.Context) string {
+	return c.GetString(string(Username))
+}
+
+// ExtractRolesFromContext extracts roles from the request context
+func ExtractRolesFromContext(c *gin.Context) string {
+	return c.GetString(string(Roles))
+}
+
+// HasRole checks if the user has a specific role
+func HasRole(c *gin.Context, role string) bool {
+	roles := ExtractRolesFromContext(c)
+	if roles == "" {
+		return false
+	}
+
+	userRoles := strings.Split(roles, ",")
+	for _, userRole := range userRoles {
+		if strings.TrimSpace(userRole) == role {
+			return true
+		}
+	}
+
+	return false
+}
+
+// RequireRole middleware that requires a specific role
+func RequireRole(role string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !HasRole(c, role) {
+			c.AbortWithStatusJSON(403, gin.H{
+				"error": "insufficient permissions",
+			})
+			return
+		}
+		c.Next()
+	}
+}

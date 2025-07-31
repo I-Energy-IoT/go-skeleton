@@ -8,22 +8,28 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// LoggingMiddleware provides request logging for HTTP requests
 func LoggingMiddleware(logger logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 
 		// Create a child logger with request context
 		reqLogger := logger.
+			WithContext(c.Request.Context()).
 			WithField("method", c.Request.Method).
 			WithField("path", c.Request.URL.Path).
 			WithField("client_ip", c.ClientIP()).
 			WithField("user_agent", c.Request.UserAgent())
 
+		// Process request
 		c.Next()
 
-		duration := time.Since(start).Seconds()
+		// Calculate response time
+		duration := time.Since(start)
+		
+		// Log request completion with status and timing
 		reqLogger.WithStatusCode(c.Writer.Status()).
-			WithResponseTime(duration * 1000).
-			Info("request handled")
+			WithResponseTime(float64(duration.Milliseconds())).
+			Info("request completed")
 	}
 }

@@ -2,33 +2,42 @@ package wrapper
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"{{.Name}}/pkg/errors"
 
 	"github.com/gin-gonic/gin"
 )
 
-// Response defines response format
+// Response defines the standard API response format
 type Response struct {
 	StatusCode int         `json:"status_code"`
 	Code       int         `json:"code"`
 	Data       interface{} `json:"data,omitempty"`
 	Message    string      `json:"message,omitempty"`
+	Timestamp  time.Time   `json:"timestamp"`
+	RequestID  string      `json:"request_id,omitempty"`
 }
 
+// String returns the JSON string representation of the response
 func (r *Response) String() string {
-	data, _ := json.Marshal(r)
+	data, err := json.Marshal(r)
+	if err != nil {
+		return fmt.Sprintf(`{"error":"failed to marshal response: %s"}`, err.Error())
+	}
 	return string(data)
 }
 
-// NewResponse creates a new response
+// NewResponse creates a new response with the given parameters
 func NewResponse(statusCode int, code int, data interface{}, message string) *Response {
 	return &Response{
 		StatusCode: statusCode,
 		Code:       code,
 		Data:       data,
 		Message:    message,
+		Timestamp:  time.Now().UTC(),
 	}
 }
 
@@ -52,15 +61,101 @@ func NewErrorResponse(err *errors.AppError) *Response {
 	)
 }
 
-// JSONOk sends a success response
+// SetRequestID sets the request ID for tracing
+func (r *Response) SetRequestID(requestID string) *Response {
+	r.RequestID = requestID
+	return r
+}
+
+// JSONOk sends a success response with 200 status code
 func JSONOk(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusOK, NewSuccessResponse(data))
+	response := NewSuccessResponse(data)
+	if requestID := c.GetString("request_id"); requestID != "" {
+		response.SetRequestID(requestID)
+	}
+	c.JSON(http.StatusOK, response)
 }
 
+// JSONCreated sends a success response with 201 status code
 func JSONCreated(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusCreated, NewSuccessResponse(data))
+	response := NewSuccessResponse(data)
+	if requestID := c.GetString("request_id"); requestID != "" {
+		response.SetRequestID(requestID)
+	}
+	c.JSON(http.StatusCreated, response)
 }
 
+// JSONNoContent sends a response with 204 status code
 func JSONNoContent(c *gin.Context) {
 	c.JSON(http.StatusNoContent, nil)
+}
+
+// JSONBadRequest sends a bad request response
+func JSONBadRequest(c *gin.Context, message string) {
+	response := NewResponse(
+		http.StatusBadRequest,
+		400,
+		nil,
+		message,
+	)
+	if requestID := c.GetString("request_id"); requestID != "" {
+		response.SetRequestID(requestID)
+	}
+	c.JSON(http.StatusBadRequest, response)
+}
+
+// JSONUnauthorized sends an unauthorized response
+func JSONUnauthorized(c *gin.Context, message string) {
+	response := NewResponse(
+		http.StatusUnauthorized,
+		401,
+		nil,
+		message,
+	)
+	if requestID := c.GetString("request_id"); requestID != "" {
+		response.SetRequestID(requestID)
+	}
+	c.JSON(http.StatusUnauthorized, response)
+}
+
+// JSONForbidden sends a forbidden response
+func JSONForbidden(c *gin.Context, message string) {
+	response := NewResponse(
+		http.StatusForbidden,
+		403,
+		nil,
+		message,
+	)
+	if requestID := c.GetString("request_id"); requestID != "" {
+		response.SetRequestID(requestID)
+	}
+	c.JSON(http.StatusForbidden, response)
+}
+
+// JSONNotFound sends a not found response
+func JSONNotFound(c *gin.Context, message string) {
+	response := NewResponse(
+		http.StatusNotFound,
+		404,
+		nil,
+		message,
+	)
+	if requestID := c.GetString("request_id"); requestID != "" {
+		response.SetRequestID(requestID)
+	}
+	c.JSON(http.StatusNotFound, response)
+}
+
+// JSONInternalServerError sends an internal server error response
+func JSONInternalServerError(c *gin.Context, message string) {
+	response := NewResponse(
+		http.StatusInternalServerError,
+		500,
+		nil,
+		message,
+	)
+	if requestID := c.GetString("request_id"); requestID != "" {
+		response.SetRequestID(requestID)
+	}
+	c.JSON(http.StatusInternalServerError, response)
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// for gin recover if panic occurs
+// Recover provides panic recovery for HTTP requests
 func Recover(l logger.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		defer func() {
@@ -16,9 +16,12 @@ func Recover(l logger.Logger) gin.HandlerFunc {
 				l.WithError(err.(error)).
 					WithField("path", ctx.Request.URL.Path).
 					WithField("method", ctx.Request.Method).
-					Error("GinPanic")
+					Error("panic recovered")
+				
 				ctx.Header("content-type", "application/json")
-				ctx.AbortWithStatusJSON(http.StatusInternalServerError, map[string]string{"errors": "there are some internal error"})
+				ctx.AbortWithStatusJSON(http.StatusInternalServerError, map[string]string{
+					"error": "Internal server error",
+				})
 			}
 		}()
 		ctx.Next()

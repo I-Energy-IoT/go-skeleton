@@ -1,40 +1,57 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/spf13/viper"
 	"go.uber.org/fx"
 )
 
+const (
+	// UATEnv represents UAT environment
+	UATEnv = "uat"
+	// DevelopmentEnv represents development environment
+	DevelopmentEnv = "development"
+	// ProductionEnv represents production environment
+	ProductionEnv = "production"
+	// StagingEnv represents staging environment
+	StagingEnv = "staging"
+)
+
+// Config represents the application configuration
 type Config struct {
-	DB     DBConfig
-	JWT    JWTConfig
-	Server ServerCfg
+	DB     DBConfig `envconfig:"DB"`
+	JWT    JWTConfig `envconfig:"JWT"`
+	Server ServerCfg `envconfig:"SERVER"`
 }
 
+// DBConfig represents database configuration
 type DBConfig struct {
-	Host               string `envconfig:"DB_HOST" default:"localhost"`
-	Port               string `envconfig:"DB_PORT" default:"5432"`
-	User               string `envconfig:"DB_USER" default:"postgres"`
-	Password           string `envconfig:"DB_PASSWORD" default:"postgres"`
-	DBName             string `envconfig:"DB_NAME" default:"postgres"`
-	SSLMode            string `envconfig:"SSL_MODE" default:"disable"`
-	SetMaxIdleConns    string `envconfig:"SET_MAX_IDLE_CONNS" default:""`
-	SetMaxOpenConns    string `envconfig:"SET_MAX_OPEN_CONNS" default:""`
-	SetConnMaxLifetime string `envconfig:"SET_CONN_MAX_LIFETIME" default:""`
+	Host               string        `envconfig:"DB_HOST" default:"localhost"`
+	Port               string        `envconfig:"DB_PORT" default:"5432"`
+	User               string        `envconfig:"DB_USER" default:"postgres"`
+	Password           string        `envconfig:"DB_PASSWORD" default:"postgres"`
+	DBName             string        `envconfig:"DB_NAME" default:"postgres"`
+	SSLMode            string        `envconfig:"SSL_MODE" default:"disable"`
+	SetMaxIdleConns    int           `envconfig:"SET_MAX_IDLE_CONNS" default:"10"`
+	SetMaxOpenConns    int           `envconfig:"SET_MAX_OPEN_CONNS" default:"100"`
+	SetConnMaxLifetime time.Duration `envconfig:"SET_CONN_MAX_LIFETIME" default:"1h"`
 }
 
+// JWTConfig represents JWT configuration
 type JWTConfig struct {
-	Secret                string `envconfig:"JWT_SECRET"`
-	ExpirationTime        string `envconfig:"JWT_EXPIRATION_TIME"`
-	RefreshSecret         string `envconfig:"JWT_REFRESH_SECRET"`
-	RefreshExpirationTime string `envconfig:"JWT_REFRESH_EXPIRATION_TIME"`
+	Secret                string        `envconfig:"JWT_SECRET" required:"true"`
+	ExpirationTime        time.Duration `envconfig:"JWT_EXPIRATION_TIME" default:"24h"`
+	RefreshSecret         string        `envconfig:"JWT_REFRESH_SECRET"`
+	RefreshExpirationTime time.Duration `envconfig:"JWT_REFRESH_EXPIRATION_TIME" default:"168h"`
 }
 
+// ServerCfg represents server configuration
 type ServerCfg struct {
 	ServerURL  string `envconfig:"SERVER_URL" default:"localhost"`
 	Port       string `envconfig:"PORT" default:"8080"`
@@ -43,39 +60,69 @@ type ServerCfg struct {
 	Production bool   `envconfig:"PRODUCTION" default:"false"`
 }
 
+// NewConfig creates a new configuration instance
 func NewConfig() (*Config, error) {
-	LoadConfig()
+	if err := LoadConfig(); err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
 
 	var cfg Config
 
-	if err := envconfig.Process("", &cfg.DB); err != nil {
-		log.Fatalf("Failed to process DB config: %v", err)
-	}
-	if err := envconfig.Process("", &cfg.JWT); err != nil {
-		log.Fatalf("Failed to process JWT config: %v", err)
-	}
-	if err := envconfig.Process("", &cfg.Server); err != nil {
-		log.Fatalf("Failed to process Server config: %v", err)
+	if err := envconfig.Process("", &cfg); err != nil {
+		return nil, fmt.Errorf("failed to process config: %w", err)
 	}
 
 	return &cfg, nil
 }
 
-func LoadConfig() {
-	viper.SetConfigFile(".env")
-
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error reading config file, %s", err)
-	}
-
-	for _, env := range viper.AllKeys() {
-		if viper.GetString(env) != "" {
-			_ = os.Setenv(env, viper.GetString(env))
-			_ = os.Setenv(strings.ToUpper(env), viper.GetString(env))
-		}
-	}
+// IsDevelopment returns true if the environment is development
+func (c *Config) IsDevelopment() bool {
+	return c.Server.Env == DevelopmentEnv
 }
 
+// IsProduction returns true if the environment is production
+func (c *Config) IsProduction() bool {
+	return c.Server.Env == ProductionEnv
+}
+
+// IsStaging returns true if the environment is staging
+func (c *Config) IsStaging() bool {
+	return c.Server.Env == StagingEnv
+}
+
+// IsUAT returns true if the environment is UAT
+func (c *Config) IsUAT() bool {
+	return c.Server.Env == UATEnv
+}
+
+// LoadConfig loads configuration from environment variables and .env file
+func LoadConfig() error {
+	viper.SetConfigFile(".env")
+	viper.SetConfigType("env")
+
+	if err := viper.ReadInConfig(); err != nil {
+		// Don't fail if .env file doesn't exist, just log it
+		log.Printf("Warning: Error reading config file: %s", err)
+	}
+
+	// Set environment variables from viper
+	for _, key := range viper.AllKeys() {
+		value := viper.GetString(key)
+		if value != "" {
+			if err := os.Setenv(key, value); err != nil {
+				return fmt.Errorf("failed to set environment variable %s: %w", key, err)
+			}
+			// Also set uppercase version for compatibility
+			if err := os.Setenv(strings.ToUpper(key), value); err != nil {
+				return fmt.Errorf("failed to set environment variable %s: %w", strings.ToUpper(key), err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// Module provides the config dependency injection module
 var Module = fx.Options(
 	fx.Provide(NewConfig),
 )

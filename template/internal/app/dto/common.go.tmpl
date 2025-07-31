@@ -4,10 +4,10 @@ import "github.com/google/uuid"
 
 // PaginationRequest represents common pagination parameters
 type PaginationRequest struct {
-	Page         int    `form:"page" json:"page" default:"0"`
-	PageSize     int    `form:"pageSize" json:"pageSize" default:"10"`
+	Page         int    `form:"page" json:"page" default:"0" validate:"min=0"`
+	PageSize     int    `form:"pageSize" json:"pageSize" default:"10" validate:"min=1,max=100"`
 	SortProperty string `form:"sortProperty" json:"sortProperty"`
-	SortOrder    string `form:"sortOrder" json:"sortOrder" default:"ASC"`
+	SortOrder    string `form:"sortOrder" json:"sortOrder" default:"ASC" validate:"oneof=ASC DESC"`
 	TextSearch   string `form:"textSearch" json:"textSearch"`
 }
 

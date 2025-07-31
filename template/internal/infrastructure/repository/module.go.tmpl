@@ -1,16 +1,7 @@
 package repository
 
 import (
-	"{{.Name}}/internal/infrastructure/database"
-
 	"go.uber.org/fx"
 )
 
-var Module = fx.Options(
-	fx.Provide(NewUserRepository),
-	fx.Provide(NewRoleRepository),
-	fx.Provide(NewUserRoleRepository),
-	fx.Invoke(func(db database.PostgreDB) {
-		initData(db)
-	}),
-)
+var Module = fx.Options()

@@ -6,29 +6,30 @@ import (
 	"time"
 
 	"{{.Name}}/config"
-
-	loggerCustom "{{.Name}}/pkg/logger"
+	"{{.Name}}/pkg/logger"
 
 	"github.com/spf13/cast"
 	"go.uber.org/fx"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	gormLogger "gorm.io/gorm/logger"
 )
 
-type postgreDB struct {
-	DB *gorm.DB
+type database struct {
+	DB     *gorm.DB
+	logger logger.Logger
 }
 
-type PostgreDB interface {
+// PostgreDB defines the interface for database operations
+type Database interface {
 	GetDB() *gorm.DB
-	BeginTransaction() (*gorm.DB, error)
-	ReleaseTransaction(tx *gorm.DB, err error)
-	CommitTransaction(tx *gorm.DB) error
-	RollbackTransaction(tx *gorm.DB) error
+	BeginTransaction(ctx context.Context) (*gorm.DB, error)
+	ReleaseTransaction(ctx context.Context, tx *gorm.DB, err *error)
+	CommitTransaction(ctx context.Context, tx *gorm.DB) error
+	RollbackTransaction(ctx context.Context, tx *gorm.DB) error
 }
 
-func NewPostgreDB(config *config.Config, log loggerCustom.Logger) (PostgreDB, error) {
+func NewPostgreDB(config *config.Config, log logger.Logger) (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.New(
 		postgres.Config{
 			DSN: fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
@@ -36,68 +37,81 @@ func NewPostgreDB(config *config.Config, log loggerCustom.Logger) (PostgreDB, er
 			PreferSimpleProtocol: true,
 		},
 	), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: gormLogger.Default.LogMode(gormLogger.Info),
 	})
 
 	if err != nil {
 		log.WithError(err).Fatal("Failed to connect to database")
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	sqlDb, err := db.DB()
 	if err != nil {
 		log.WithError(err).Fatal("Failed to get DB from gorm")
-		return nil, err
+		return nil, fmt.Errorf("failed to get DB from gorm: %w", err)
 	}
 
-	if config.DB.SetMaxIdleConns != "" {
-		sqlDb.SetMaxIdleConns(cast.ToInt(config.DB.SetMaxIdleConns))
+	// Configure connection pool settings
+	if config.DB.SetMaxIdleConns != 0 {
+		sqlDb.SetMaxIdleConns(config.DB.SetMaxIdleConns)
 	}
-	if config.DB.SetMaxOpenConns != "" {
-		sqlDb.SetMaxOpenConns(cast.ToInt(config.DB.SetMaxOpenConns))
+	if config.DB.SetMaxOpenConns != 0 {
+		sqlDb.SetMaxOpenConns(config.DB.SetMaxOpenConns)
 	}
-	if config.DB.SetConnMaxLifetime != "" {
-		sqlDb.SetConnMaxLifetime(cast.ToDuration(config.DB.SetConnMaxLifetime) * time.Hour)
+	if config.DB.SetConnMaxLifetime != 0 {
+		sqlDb.SetConnMaxLifetime(config.DB.SetConnMaxLifetime)
 	}
-	return &postgreDB{DB: db}, nil
+
+	return db, nil
 }
 
-func RunPostgreDB(lc fx.Lifecycle, db PostgreDB, log loggerCustom.Logger) {
+// NewPostgreDB creates a new PostgreSQL database connection
+func NewDatabase(db *gorm.DB, log logger.Logger) (Database, error) {
+	return &database{DB: db, logger: log}, nil
+}
+
+// RunPostgreDB manages the database lifecycle
+func RunPostgreDB(lc fx.Lifecycle, db *gorm.DB, log logger.Logger) {
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
-			sqlDb, err := db.GetDB().DB()
+			sqlDb, err := db.DB()
 			if err != nil {
 				log.WithError(err).Fatal("Failed to get DB from gorm")
-				return err
+				return fmt.Errorf("failed to get DB from gorm: %w", err)
 			}
 			return sqlDb.Close()
 		},
 	})
 }
 
-// BeginTransaction implements Database.
-func (d *postgreDB) BeginTransaction() (*gorm.DB, error) {
-	return d.DB.Begin(), nil
+// BeginTransaction starts a new database transaction
+func (d *database) BeginTransaction(ctx context.Context) (*gorm.DB, error) {
+	return d.DB.WithContext(ctx).Begin(), nil
 }
 
-// CommitTransaction implements Database.
-func (d *postgreDB) CommitTransaction(tx *gorm.DB) error {
-	return tx.Commit().Error
+// CommitTransaction commits the database transaction
+func (d *database) CommitTransaction(ctx context.Context, tx *gorm.DB) error {
+	return tx.WithContext(ctx).Commit().Error
 }
 
-// GetDB implements Database.
-func (d *postgreDB) GetDB() *gorm.DB {
+// GetDB returns the underlying GORM database instance
+func (d *database) GetDB() *gorm.DB {
 	return d.DB
 }
 
-// ReleaseTransaction implements Database.
-func (d *postgreDB) ReleaseTransaction(tx *gorm.DB, err error) {
-	if err != nil {
-		d.RollbackTransaction(tx)
+// ReleaseTransaction releases the database transaction
+func (d *database) ReleaseTransaction(ctx context.Context, tx *gorm.DB, err *error) {
+	if *err != nil {
+		d.RollbackTransaction(ctx, tx)
+		d.logger.WithError(*err).Error("transaction failed, rolling back")
+		return
+	} else {
+		tx.WithContext(ctx).Commit()
+		d.logger.Info("transaction committed")
 	}
-	tx.Commit()
 }
 
-// RollbackTransaction implements Database.
-func (d *postgreDB) RollbackTransaction(tx *gorm.DB) error {
-	return tx.Rollback().Error
+// RollbackTransaction rolls back the database transaction
+func (d *database) RollbackTransaction(ctx context.Context, tx *gorm.DB) error {
+	return tx.WithContext(ctx).Rollback().Error
 }

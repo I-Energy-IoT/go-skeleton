@@ -1,19 +1,78 @@
 package errors
 
 import (
+	"fmt"
 	"net/http"
-
-	"{{.Name}}/pkg/constant"
 )
 
+const (
+	// SuccessMess represents success message
+	SuccessMess = "Success"
+	// ConflictErrMess represents conflict error message
+	ConflictErrMess = "Conflict Error"
+	// BadRequestErrMess represents bad request error message
+	BadRequestErrMess = "Bad Request Error"
+	// UnAuthorizedErrMess represents unauthorized error message
+	UnAuthorizedErrMess = "Unauthorized Error"
+	// NotFoundErrMess represents not found error message
+	NotFoundErrMess = "Not Found Error"
+	// ForbiddenErrMess represents forbidden error message
+	ForbiddenErrMess = "Forbidden Error"
+	// InternalServerErrMess represents internal server error message
+	InternalServerErrMess = "Internal Server Error"
+)
+
+const (
+	// General Errors: 0 -> -49
+	// Processing indicates success but the object is being processed
+	Processing = 2
+	// Success indicates no error
+	Success = 1
+	// Unknown error indicates unknown state or step
+	Unknown = 0
+	// BadRequestErr represents bad request error
+	BadRequestErr = -1
+	// NotFound represents not found error
+	NotFound = -2
+	// AuthenticationFailed represents authentication failure
+	AuthenticationFailed = -3
+	// InternalServerError represents internal server error
+	InternalServerError = -4
+	// IllegalStateError represents illegal state error
+	IllegalStateError = -5
+	// SendMessageError represents message sending error
+	SendMessageError = -6
+	// CallInternalAPIError represents internal API call error
+	CallInternalAPIError = -7
+	// InvalidData represents invalid data error
+	InvalidData = -8
+	// SerializingError represents serialization error
+	SerializingError = -9
+	// DeserializingError represents deserialization error
+	DeserializingError = -10
+	// CastingError represents type casting error
+	CastingError = -11
+	// ParsingError represents parsing error
+	ParsingError = -12
+	// ConflictError represents conflict error
+	ConflictError = -13
+	// ForbiddenError represents forbidden error
+	ForbiddenError = -14
+)
+
+// AppError represents an application-specific error
 type AppError struct {
-	Code    int
-	Message string
-	Status  int
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Status  int    `json:"status"`
+	Details string `json:"details,omitempty"`
 }
 
 // Error implements the error interface
 func (e *AppError) Error() string {
+	if e.Details != "" {
+		return fmt.Sprintf("%s: %s", e.Message, e.Details)
+	}
 	return e.Message
 }
 
@@ -22,10 +81,16 @@ func (e *AppError) StatusCode() int {
 	return e.Status
 }
 
+// WithDetails adds additional details to the error
+func (e *AppError) WithDetails(details string) *AppError {
+	e.Details = details
+	return e
+}
+
 // NewInternalServerError creates a new internal server error
 func NewInternalServerError(message string) *AppError {
 	return &AppError{
-		Code:    constant.InternalServerError,
+		Code:    InternalServerError,
 		Message: message,
 		Status:  http.StatusInternalServerError,
 	}
@@ -34,7 +99,7 @@ func NewInternalServerError(message string) *AppError {
 // NewBadRequestError creates a new bad request error
 func NewBadRequestError(message string) *AppError {
 	return &AppError{
-		Code:    constant.BadRequestErr,
+		Code:    BadRequestErr,
 		Message: message,
 		Status:  http.StatusBadRequest,
 	}
@@ -43,7 +108,7 @@ func NewBadRequestError(message string) *AppError {
 // NewNotFoundError creates a new not found error
 func NewNotFoundError(message string) *AppError {
 	return &AppError{
-		Code:    constant.NotFound,
+		Code:    NotFound,
 		Message: message,
 		Status:  http.StatusNotFound,
 	}
@@ -52,15 +117,16 @@ func NewNotFoundError(message string) *AppError {
 // NewUnauthorizedError creates a new unauthorized error
 func NewUnauthorizedError(message string) *AppError {
 	return &AppError{
-		Code:    constant.AuthenticationFailed,
+		Code:    AuthenticationFailed,
 		Message: message,
 		Status:  http.StatusUnauthorized,
 	}
 }
 
+// NewForbiddenError creates a new forbidden error
 func NewForbiddenError(message string) *AppError {
 	return &AppError{
-		Code:    constant.ForbiddenError,
+		Code:    ForbiddenError,
 		Message: message,
 		Status:  http.StatusForbidden,
 	}
@@ -69,8 +135,39 @@ func NewForbiddenError(message string) *AppError {
 // NewConflictError creates a new conflict error
 func NewConflictError(message string) *AppError {
 	return &AppError{
-		Code:    constant.ConflictError,
+		Code:    ConflictError,
 		Message: message,
 		Status:  http.StatusConflict,
 	}
+}
+
+// NewValidationError creates a new validation error
+func NewValidationError(field, message string) *AppError {
+	return &AppError{
+		Code:    BadRequestErr,
+		Message: fmt.Sprintf("validation failed for field '%s': %s", field, message),
+		Status:  http.StatusBadRequest,
+	}
+}
+
+// NewDatabaseError creates a new database error
+func NewDatabaseError(message string) *AppError {
+	return &AppError{
+		Code:    InternalServerError,
+		Message: fmt.Sprintf("database error: %s", message),
+		Status:  http.StatusInternalServerError,
+	}
+}
+
+// IsAppError checks if an error is an AppError
+func IsAppError(err error) (*AppError, bool) {
+	if err == nil {
+		return nil, false
+	}
+	
+	if appErr, ok := err.(*AppError); ok {
+		return appErr, true
+	}
+	
+	return nil, false
 }

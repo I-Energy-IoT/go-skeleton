@@ -2,23 +2,27 @@ package dto
 
 import "{{.Name}}/internal/domain/entity"
 
+// UserCreateRequest represents a request to create a new user
 type UserCreateRequest struct {
-	Username string `json:"username" binding:"required" validate:"min=10,max=20,required"`
-	Password string `json:"password" binding:"required" validate:"min=8,max=20,alphanum,required"`
-	Email    string `json:"email" binding:"required" validate:"email,required"`
+	Username string `json:"username" binding:"required" validate:"required,min=3,max=50,alphanum"`
+	Password string `json:"password" binding:"required" validate:"required,min=8,max=100"`
+	Email    string `json:"email" binding:"required" validate:"required,email"`
 }
 
+// UserUpdateRequest represents a request to update an existing user
 type UserUpdateRequest struct {
-	Username string `json:"username" binding:"required" validate:"min=10,max=20"`
-	Email    string `json:"email" binding:"required" validate:"email"`
+	Username string `json:"username" validate:"omitempty,min=3,max=50,alphanum"`
+	Email    string `json:"email" validate:"omitempty,email"`
 }
 
+// UserDetailResponse represents a user detail response
 type UserDetailResponse struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
 }
 
+// FromEntity converts a User entity to UserDetailResponse
 func FromEntity(u *entity.User) *UserDetailResponse {
 	return &UserDetailResponse{
 		ID:       u.ID.String(),

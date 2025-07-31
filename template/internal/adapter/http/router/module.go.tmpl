@@ -10,9 +10,7 @@ import (
 
 type RouterParams struct {
 	fx.In
-	Logger     logger.Logger
-	AuthRouter *AuthRouter
-	UserRouter *UserRouter
+	Logger logger.Logger
 }
 
 func NewRouter(params RouterParams) *gin.Engine {
@@ -22,15 +20,11 @@ func NewRouter(params RouterParams) *gin.Engine {
 	router.Use(middleware.LoggingMiddleware(params.Logger))
 	router.Use(middleware.ErrorHandlerMiddleware(params.Logger))
 
-	api := router.Group("/api/v1")
-	params.AuthRouter.Register(api)
-	params.UserRouter.Register(api)
+	router.Group("/api/v1")
 
 	return router
 }
 
 var Module = fx.Options(
-	fx.Provide(NewAuthRouter),
-	fx.Provide(NewUserRouter),
 	fx.Provide(NewRouter),
 )

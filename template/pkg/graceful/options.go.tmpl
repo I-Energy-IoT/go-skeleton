@@ -1,30 +1,47 @@
 package graceful
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
+// opt holds the configuration options for the graceful service
 type opt struct {
 	stopTimeout time.Duration
 	waitTime    time.Duration
 }
 
+// Option defines the interface for configuration options
 type Option interface {
-	apply(opt *opt)
+	apply(opt *opt) error
 }
 
-type optFunc func(*opt)
+// optFunc is a function that applies an option
+type optFunc func(*opt) error
 
-func (f optFunc) apply(args *opt) {
-	f(args)
+// apply implements the Option interface
+func (f optFunc) apply(o *opt) error {
+	return f(o)
 }
 
+// WithStopTimeout sets the timeout for graceful shutdown
 func WithStopTimeout(t time.Duration) Option {
-	return optFunc(func(o *opt) {
+	return optFunc(func(o *opt) error {
+		if t <= 0 {
+			return fmt.Errorf("stop timeout must be positive, got %v", t)
+		}
 		o.stopTimeout = t
+		return nil
 	})
 }
 
+// WithWaitTime sets the wait time before shutdown
 func WithWaitTime(t time.Duration) Option {
-	return optFunc(func(o *opt) {
+	return optFunc(func(o *opt) error {
+		if t < 0 {
+			return fmt.Errorf("wait time cannot be negative, got %v", t)
+		}
 		o.waitTime = t
+		return nil
 	})
 }

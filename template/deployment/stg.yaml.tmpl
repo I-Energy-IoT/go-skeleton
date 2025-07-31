@@ -1,0 +1,116 @@
+# {{.Name}} Service - Staging Environment
+nameOverride: "{{.Name}}"
+fullnameOverride: "{{.Name}}"
+
+environment: staging
+project: golang-services
+
+# Replica count and resource settings suitable for staging
+replicaCount: 1
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 512Mi
+
+image:
+  repository: example/{{.Name}}
+  tag: 1.0.0
+  pullPolicy: IfNotPresent
+
+# Service-specific settings
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: http
+  annotations: {}
+
+# Ingress configuration for staging
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: {{.Name}}.stg.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Health check endpoints
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+# Auto-scaling for staging
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+# Prometheus configuration
+prometheus:
+  enabled: false
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+
+# Service specific environment variables
+app:
+  env:
+    - name: APP_ENV
+      value: "staging"
+  
+  # Service configuration
+  config:
+    .env: |
+    app-config.yaml: |
+      logLevel: debug
+      enableFeatures:
+        - feature1
+        - feature2
+      rateLimiting:
+        enabled: true
+        maxRequests: 100
+        window: 60s
+
+# Specific applicationConfig
+applicationConfig:
+  database.host: stg-db.example.com
+  database.name: {{.Name}}_db
+  cache.enabled: "true"
+
+# Custom volume mounts for .env file
+volumeMounts:
+  - name: env-file
+    mountPath: /app/.env
+    subPath: .env
+    readOnly: true
+
+# Custom volumes for .env file
+volumes:
+  - name: env-file
+    configMap:
+      name: {{.Name}}-config
+
+# Service-specific common labels
+commonLabels:
+  app.kubernetes.io/component: backend
+  app.kubernetes.io/part-of: microservices
+  team: dev-team
+  environment: staging 

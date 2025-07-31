@@ -1,0 +1,129 @@
+# {{.Name}} Service - Production Environment
+nameOverride: "{{.Name}}-prod"
+fullnameOverride: "{{.Name}}-prod"
+
+environment: production
+project: golang-services
+
+# Replica count and resource settings suitable for production
+replicaCount: 1
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+image:
+  repository: registry.digitalocean.com/ienergy-registry/{{.Name}}-prod
+  tag: 1.0.0
+  pullPolicy: Always
+
+# Docker registry secret for pulling images
+imagePullSecrets:
+  - name: ienergy-registry
+
+# Service-specific settings
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: http
+  annotations: {}
+
+# Ingress configuration for production
+ingress:
+  enabled: false
+  # className: nginx
+  # annotations:
+  #   kubernetes.io/ingress.class: nginx
+  #   cert-manager.io/cluster-issuer: letsencrypt-prod
+  #   nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  # hosts:
+  #   - host: {{.Name}}-prod.example.com
+  #     paths:
+  #       - path: /
+  #         pathType: Prefix
+  # TLS configuration - commented out until needed
+  # tls:
+  #   - secretName: {{.Name}}-prod-tls
+  #     hosts:
+  #       - {{.Name}}-prod.example.com
+
+# Health check endpoints
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+# Auto-scaling for production
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 75
+
+# Prometheus configuration
+prometheus:
+  enabled: false
+  serviceMonitor:
+    enabled: false
+    interval: 15s
+    scrapeTimeout: 10s
+    selector:
+      release: prometheus
+
+# Service specific environment variables
+app:
+  env:
+    - name: APP_ENV
+      value: "production"
+  
+  # Service configuration - this will be mounted as ConfigMap
+  config:
+    .env: |
+    app-config.yaml: |
+      logLevel: info
+      enableFeatures:
+        - feature1
+        - feature2
+      rateLimiting:
+        enabled: true
+        maxRequests: 200
+        window: 60s
+
+# Custom volume mounts for .env file
+volumeMounts:
+  - name: env-file
+    mountPath: /app/.env
+    subPath: .env
+    readOnly: true
+
+# Custom volumes for .env file
+volumes:
+  - name: env-file
+    configMap:
+      name: {{.Name}}-prod-config
+
+# Specific applicationConfig
+applicationConfig:
+  database.host: prod-db.example.com
+  database.name: {{.Name}}_prod_db
+  cache.enabled: "true"
+
+# Service-specific common labels
+commonLabels:
+  app.kubernetes.io/component: backend
+  app.kubernetes.io/part-of: microservices
+  team: dev-team
+  environment: production 

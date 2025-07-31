@@ -1,13 +1,23 @@
-.PHONY: swagger-init swagger-build build run test install-tools lint format init generate-mock migrate-create migrate-up migrate-down migrate-down-n migrate-force migrate-drop migrate-goto
+.PHONY: help install-tools swagger-init swagger-build build run test fmt lint init generate-mock migrate-create migrate-up migrate-down migrate-down-n migrate-force migrate-drop migrate-goto
 
 include .env
+
+# Configuration
 MIGRATE_DIR := migrations
 CONN_STRING := postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(SSL_MODE)
 APP_DIR := cmd/app
 MOCK_DEST_DIR := internal/infrastructure/repository/mock
 MOCK_SRC_DIR := internal/domain/entity
 
-install-tools:
+# Default target
+.DEFAULT_GOAL := help
+
+# Help target
+help: ## Show this help message
+	@echo "Available commands:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+install-tools: ## Install required development tools
 	@echo "Installing required tools..."
 	@go install github.com/swaggo/swag/cmd/swag@latest
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
@@ -16,60 +26,55 @@ install-tools:
 	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 	@echo "Tools installed successfully!"
 
-swagger-init:
+swagger-init: ## Initialize Swagger documentation
 	swag init -g $(APP_DIR)/main.go -o docs/swagger
 
-swagger-build:
+swagger-build: ## Build and format Swagger documentation
 	swag fmt
 	swag init -g $(APP_DIR)/main.go -o docs/swagger
 
-init:
+init: ## Initialize the project dependencies
 	go mod tidy
 	go mod download
 
-build:
+build: ## Build the application
 	go build -o bin/app $(APP_DIR)/main.go
 
-run:
+run: ## Run the application
 	bin/app
 
-test:
-	go test -v ./...
+test: ## Run tests
+	go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
-fmt:
+fmt: ## Format code
 	goimports -w .
 
-lint:
+lint: ## Run linter
 	golangci-lint run ./...
 
-generate-mock:
+generate-mock: ## Generate mocks for interfaces
 	mockery --all --dir $(MOCK_SRC_DIR) --output $(MOCK_DEST_DIR) --case snake
 	go mod tidy
 
-# Create a new migration (make migrate-create NAME=profiles)
-migrate-create:
+# Database migration commands
+
+migrate-create: ## Create a new migration (make migrate-create NAME=migration_name)
 	migrate create -ext sql -dir $(MIGRATE_DIR) -seq $(NAME)
 
-# Run all pending migration (make migrate-up)
-migrate-up:
+migrate-up: ## Run all pending migrations
 	migrate -path $(MIGRATE_DIR) -database "$(CONN_STRING)" up
 
-# Rollback the last migration
-migrate-down:
+migrate-down: ## Rollback the last migration
 	migrate -path $(MIGRATE_DIR) -database "$(CONN_STRING)" down 1
 
-# Rollback N migrations
-migrate-down-n:
+migrate-down-n: ## Rollback N migrations (make migrate-down-n N=3)
 	migrate -path $(MIGRATE_DIR) -database "$(CONN_STRING)" down $(N)
 
-# Force migration version (use with caution example: make migrate-force VERSION=1) 
-migrate-force:
+migrate-force: ## Force migration version (make migrate-force VERSION=1)
 	migrate -path $(MIGRATE_DIR) -database "$(CONN_STRING)" force $(VERSION)
 
-# Drop everything (include schema migration)
-migrate-drop:
+migrate-drop: ## Drop all migrations and schema
 	migrate -path $(MIGRATE_DIR) -database "$(CONN_STRING)" drop
 
-# Apply specific migration version (make migrate-goto VERSION=1)
-migrate-goto:
+migrate-goto: ## Apply specific migration version (make migrate-goto VERSION=1)
 	migrate -path $(MIGRATE_DIR) -database "$(CONN_STRING)" goto $(VERSION)

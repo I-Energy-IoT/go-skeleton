@@ -2,31 +2,130 @@ package util
 
 import (
 	"context"
+	"fmt"
 
+	"{{.Name}}/pkg/authentication"
 	"github.com/google/uuid"
 )
 
-const (
-	UserIDCTX    = "user_id"
-	UserEmailCTX = "email"
-)
-
-func UserIDFromCTX(ctx context.Context) (userID uuid.UUID) {
-	user, ok := ctx.Value(UserIDCTX).(string)
-	if !ok || user == "" {
+// UserIDFromCTX extracts the user ID from the context
+func UserIDFromCTX(ctx context.Context) uuid.UUID {
+	if ctx == nil {
 		return uuid.Nil
 	}
 
-	userID, err := uuid.Parse(user)
+	userIDStr, ok := ctx.Value(authentication.UserID).(string)
+	if !ok || userIDStr == "" {
+		return uuid.Nil
+	}
+
+	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		return uuid.Nil
 	}
 
-	return
+	return userID
 }
 
-func UserEmailFromCTX(ctx context.Context) (email string) {
-	user := ctx.Value(UserEmailCTX)
-	email, _ = user.(string)
-	return
+// UserEmailFromCTX extracts the user email from the context
+func UserEmailFromCTX(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+
+	email, ok := ctx.Value(authentication.Email).(string)
+	if !ok {
+		return ""
+	}
+	return email
+}
+
+// UsernameFromCTX extracts the username from the context
+func UsernameFromCTX(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+
+	username, ok := ctx.Value(authentication.Username).(string)
+	if !ok {
+		return ""
+	}
+	return username
+}
+
+// RolesFromCTX extracts the roles from the context
+func RolesFromCTX(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+
+	roles, ok := ctx.Value(authentication.Roles).(string)
+	if !ok {
+		return ""
+	}
+	return roles
+}
+
+// RequestIDFromCTX extracts the request ID from the context
+func RequestIDFromCTX(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+
+	requestID, ok := ctx.Value("request_id").(string)
+	if !ok {
+		return ""
+	}
+	return requestID
+}
+
+// SetRequestID sets the request ID in the context
+func SetRequestID(ctx context.Context, requestID string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, "request_id", requestID)
+}
+
+// IsAuthenticated checks if the user is authenticated
+func IsAuthenticated(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+
+	userID := UserIDFromCTX(ctx)
+	return userID != uuid.Nil
+}
+
+// GetUserInfo extracts all user information from the context
+func GetUserInfo(ctx context.Context) (uuid.UUID, string, string, string) {
+	if ctx == nil {
+		return uuid.Nil, "", "", ""
+	}
+
+	userID := UserIDFromCTX(ctx)
+	email := UserEmailFromCTX(ctx)
+	username := UsernameFromCTX(ctx)
+	roles := RolesFromCTX(ctx)
+
+	return userID, email, username, roles
+}
+
+// ValidateContext validates that the context contains required user information
+func ValidateContext(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("context cannot be nil")
+	}
+
+	userID := UserIDFromCTX(ctx)
+	if userID == uuid.Nil {
+		return fmt.Errorf("user ID not found in context")
+	}
+
+	email := UserEmailFromCTX(ctx)
+	if email == "" {
+		return fmt.Errorf("email not found in context")
+	}
+
+	return nil
 }
