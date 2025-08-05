@@ -68,7 +68,7 @@ func (r *Response) SetRequestID(requestID string) *Response {
 }
 
 // JSONOk sends a success response with 200 status code
-func JSONOk(c *gin.Context, data interface{}) {
+func JSONOK(c *gin.Context, data interface{}) {
 	response := NewSuccessResponse(data)
 	if requestID := c.GetString("request_id"); requestID != "" {
 		response.SetRequestID(requestID)
@@ -88,74 +88,4 @@ func JSONCreated(c *gin.Context, data interface{}) {
 // JSONNoContent sends a response with 204 status code
 func JSONNoContent(c *gin.Context) {
 	c.JSON(http.StatusNoContent, nil)
-}
-
-// JSONBadRequest sends a bad request response
-func JSONBadRequest(c *gin.Context, message string) {
-	response := NewResponse(
-		http.StatusBadRequest,
-		400,
-		nil,
-		message,
-	)
-	if requestID := c.GetString("request_id"); requestID != "" {
-		response.SetRequestID(requestID)
-	}
-	c.JSON(http.StatusBadRequest, response)
-}
-
-// JSONUnauthorized sends an unauthorized response
-func JSONUnauthorized(c *gin.Context, message string) {
-	response := NewResponse(
-		http.StatusUnauthorized,
-		401,
-		nil,
-		message,
-	)
-	if requestID := c.GetString("request_id"); requestID != "" {
-		response.SetRequestID(requestID)
-	}
-	c.JSON(http.StatusUnauthorized, response)
-}
-
-// JSONForbidden sends a forbidden response
-func JSONForbidden(c *gin.Context, message string) {
-	response := NewResponse(
-		http.StatusForbidden,
-		403,
-		nil,
-		message,
-	)
-	if requestID := c.GetString("request_id"); requestID != "" {
-		response.SetRequestID(requestID)
-	}
-	c.JSON(http.StatusForbidden, response)
-}
-
-// JSONNotFound sends a not found response
-func JSONNotFound(c *gin.Context, message string) {
-	response := NewResponse(
-		http.StatusNotFound,
-		404,
-		nil,
-		message,
-	)
-	if requestID := c.GetString("request_id"); requestID != "" {
-		response.SetRequestID(requestID)
-	}
-	c.JSON(http.StatusNotFound, response)
-}
-
-// JSONInternalServerError sends an internal server error response
-func JSONInternalServerError(c *gin.Context, message string) {
-	response := NewResponse(
-		http.StatusInternalServerError,
-		500,
-		nil,
-		message,
-	)
-	if requestID := c.GetString("request_id"); requestID != "" {
-		response.SetRequestID(requestID)
-	}
-	c.JSON(http.StatusInternalServerError, response)
 }

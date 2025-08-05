@@ -1,0 +1,11 @@
+package validator
+
+import (
+	"go.uber.org/fx"
+
+	"github.com/go-playground/validator/v10"
+)
+
+var Module = fx.Options(
+	fx.Provide(validator.New),
+)

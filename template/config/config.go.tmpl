@@ -37,7 +37,7 @@ type DBConfig struct {
 	User               string        `envconfig:"DB_USER" default:"postgres"`
 	Password           string        `envconfig:"DB_PASSWORD" default:"postgres"`
 	DBName             string        `envconfig:"DB_NAME" default:"postgres"`
-	SSLMode            string        `envconfig:"SSL_MODE" default:"disable"`
+	SSLMode            string        `envconfig:"DB_SSL_MODE" default:"disable"`
 	SetMaxIdleConns    int           `envconfig:"SET_MAX_IDLE_CONNS" default:"10"`
 	SetMaxOpenConns    int           `envconfig:"SET_MAX_OPEN_CONNS" default:"100"`
 	SetConnMaxLifetime time.Duration `envconfig:"SET_CONN_MAX_LIFETIME" default:"1h"`
@@ -47,7 +47,6 @@ type DBConfig struct {
 type JWTConfig struct {
 	Secret                string        `envconfig:"JWT_SECRET" required:"true"`
 	ExpirationTime        time.Duration `envconfig:"JWT_EXPIRATION_TIME" default:"24h"`
-	RefreshSecret         string        `envconfig:"JWT_REFRESH_SECRET"`
 	RefreshExpirationTime time.Duration `envconfig:"JWT_REFRESH_EXPIRATION_TIME" default:"168h"`
 }
 

@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"{{.Name}}/internal/infrastructure/database"
+	"{{.Name}}/internal/infrastructure/external"
 	"{{.Name}}/internal/infrastructure/repository"
 
 	"go.uber.org/fx"
@@ -10,5 +11,6 @@ import (
 var Module = fx.Options(
 	fx.Provide(database.NewPostgreDB),
 	fx.Invoke(database.RunPostgreDB),
+	external.Module,
 	repository.Module,
 )

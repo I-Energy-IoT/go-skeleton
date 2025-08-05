@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"{{.Name}}/config"
-	"{{.Name}}/external"
 	"{{.Name}}/internal"
 	"{{.Name}}/pkg/graceful"
 	"{{.Name}}/pkg/logger"
@@ -70,12 +69,11 @@ func main() {
 	app := fx.New(
 		config.Module,
 		logger.Module,
-		external.Module,
-		internal.Module,
 		fx.WithLogger(func(log logger.Logger) fxevent.Logger {
 			return log
 		}),
 		fx.Invoke(setupSwaggerHandler, startServer),
+		internal.Module,
 	)
 
 	app.Run()

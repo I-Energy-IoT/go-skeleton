@@ -1,6 +1,6 @@
 # {{.Name}} Service - Production Environment
-nameOverride: "{{.Name}}-prod"
-fullnameOverride: "{{.Name}}-prod"
+nameOverride: "{{.Name}}"
+fullnameOverride: "{{.Name}}"
 
 environment: production
 project: golang-services
@@ -16,7 +16,7 @@ resources:
     memory: 1Gi
 
 image:
-  repository: registry.digitalocean.com/ienergy-registry/{{.Name}}-prod
+  repository: registry.digitalocean.com/ienergy-registry/{{.Name}}
   tag: 1.0.0
   pullPolicy: Always
 
@@ -113,12 +113,12 @@ volumeMounts:
 volumes:
   - name: env-file
     configMap:
-      name: {{.Name}}-prod-config
+      name: {{.Name}}-config
 
 # Specific applicationConfig
 applicationConfig:
   database.host: prod-db.example.com
-  database.name: {{.Name}}_prod_db
+  database.name: {{.Name}}_db
   cache.enabled: "true"
 
 # Service-specific common labels

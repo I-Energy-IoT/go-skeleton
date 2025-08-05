@@ -3,11 +3,9 @@ package adapter
 import (
 	"{{.Name}}/internal/adapter/http"
 
-	"github.com/go-playground/validator/v10"
 	"go.uber.org/fx"
 )
 
 var Module = fx.Options(
 	http.Module,
-	fx.Provide(validator.New),
 )
