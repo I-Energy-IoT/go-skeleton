@@ -1,0 +1,8 @@
+package service
+
+import "github.com/gin-gonic/gin"
+
+type JwtService interface {
+	GenerateToken(userID string, email string, username string, role string) (string, error)
+	ValidateToken(c *gin.Context) error
+}

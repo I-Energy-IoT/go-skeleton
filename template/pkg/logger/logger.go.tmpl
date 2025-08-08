@@ -68,37 +68,31 @@ type standardLogger struct {
 func NewLogger(cfg *config.Config) (Logger, error) {
 	var zapCfg zap.Config
 
-	switch cfg.Server.Env {
-	case config.DevelopmentEnv:
-		zapCfg = zap.NewDevelopmentConfig()
-		zapCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-		zapCfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-		zapCfg.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
-	case config.ProductionEnv:
+	if cfg.IsProduction() {
 		zapCfg = zap.NewProductionConfig()
 		zapCfg.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
 		zapCfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 		zapCfg.EncoderConfig.EncodeLevel = zapcore.LowercaseLevelEncoder
-	case config.StagingEnv:
+	} else if cfg.IsDevelopment() {
+		zapCfg = zap.NewDevelopmentConfig()
+		zapCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		zapCfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		zapCfg.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	} else if cfg.IsStaging() {
 		zapCfg = zap.NewProductionConfig()
 		zapCfg.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
 		zapCfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 		zapCfg.EncoderConfig.EncodeLevel = zapcore.LowercaseLevelEncoder
-	case config.UATEnv:
+	} else if cfg.IsUAT() {
 		zapCfg = zap.NewDevelopmentConfig()
 		zapCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 		zapCfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 		zapCfg.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
-	default:
-		zapCfg = zap.NewDevelopmentConfig()
-		zapCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-		zapCfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-		zapCfg.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
 	}
 
 	// Configure output paths
 	zapCfg.OutputPaths = []string{"stdout"}
-	if cfg.Server.Env == config.ProductionEnv {
+	if cfg.IsProduction() {
 		zapCfg.OutputPaths = append(zapCfg.OutputPaths, "stderr")
 	}
 

@@ -1,0 +1,35 @@
+package middleware
+
+import (
+	"net/http"
+
+	"{{.Name}}/config"
+	"{{.Name}}/internal/domain/service"
+	"{{.Name}}/pkg/errors"
+	"{{.Name}}/pkg/wrapper"
+
+	"github.com/gin-gonic/gin"
+)
+
+type JwtAuthMiddleware struct {
+	config *config.Config
+	jwtService service.JwtService
+}
+
+func NewJwtAuthMiddleware(config *config.Config, jwtService service.JwtService) *JwtAuthMiddleware {
+	return &JwtAuthMiddleware{config: config, jwtService: jwtService}
+}
+
+// JwtAuthMiddleware validates JWT tokens for protected routes
+func (m *JwtAuthMiddleware) Middleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if err := m.jwtService.ValidateToken(c); err != nil {
+			c.JSON(http.StatusUnauthorized, wrapper.NewErrorResponse(
+				errors.NewUnauthorizedError("invalid or missing token"),
+			))
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}

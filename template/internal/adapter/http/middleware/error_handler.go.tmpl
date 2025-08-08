@@ -13,16 +13,26 @@ import (
 	"github.com/lib/pq"
 )
 
+type ErrorHandlerMiddleware struct {
+	logger logger.Logger
+}
+
+func NewErrorHandlerMiddleware(logger logger.Logger) *ErrorHandlerMiddleware {
+	return &ErrorHandlerMiddleware{logger: logger}
+}
+
 // ErrorHandlerMiddleware provides centralized error handling for HTTP requests
-func ErrorHandlerMiddleware(logger logger.Logger) gin.HandlerFunc {
+func (m *ErrorHandlerMiddleware) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				logger.WithContext(c.Request.Context()).
+				m.logger.WithContext(c.Request.Context()).
 					WithError(err.(error)).
-					WithField("stack", string(debug.Stack())).
-					WithField("path", c.Request.URL.Path).
-					WithField("method", c.Request.Method).
+					WithFields(map[string]interface{}{
+						"stack": string(debug.Stack()),
+						"path":  c.Request.URL.Path,
+						"method": c.Request.Method,
+					}).
 					Error("panic recovered")
 				c.JSON(http.StatusInternalServerError, wrapper.NewErrorResponse(
 					errors.NewInternalServerError("Internal server error"),
@@ -39,10 +49,12 @@ func ErrorHandlerMiddleware(logger logger.Logger) gin.HandlerFunc {
 			}
 			err := lastErr.Err
 
-			logger.WithContext(c.Request.Context()).
+			m.logger.WithContext(c.Request.Context()).
 				WithError(err).
-				WithField("path", c.Request.URL.Path).
-				WithField("method", c.Request.Method).
+				WithFields(map[string]interface{}{
+					"path":   c.Request.URL.Path,
+					"method": c.Request.Method,
+				}).
 				Error("request error")
 
 			// Handle different types of errors
@@ -50,9 +62,9 @@ func ErrorHandlerMiddleware(logger logger.Logger) gin.HandlerFunc {
 			case *errors.AppError:
 				c.JSON(e.Status, wrapper.NewErrorResponse(e))
 			case validator.ValidationErrors:
-				handleValidationErrors(c, e, logger)
+				m.handleValidationErrors(c, e)
 			case *pq.Error:
-				handleDatabaseError(c, e, logger)
+				m.handleDatabaseError(c, e)
 			default:
 				c.JSON(http.StatusInternalServerError, wrapper.NewErrorResponse(
 					errors.NewInternalServerError("Internal server error"),
@@ -63,11 +75,14 @@ func ErrorHandlerMiddleware(logger logger.Logger) gin.HandlerFunc {
 }
 
 // handleValidationErrors processes validation errors
-func handleValidationErrors(c *gin.Context, err validator.ValidationErrors, logger logger.Logger) {
+func (m *ErrorHandlerMiddleware) handleValidationErrors(c *gin.Context, err validator.ValidationErrors) {
 	if len(err) > 0 {
-		logger.WithContext(c.Request.Context()).
+		m.logger.WithContext(c.Request.Context()).
 			WithError(err).
-			WithField("path", c.Request.URL.Path).
+			WithFields(map[string]interface{}{
+				"path":   c.Request.URL.Path,
+				"method": c.Request.Method,
+			}).
 			Error("validation error")
 		c.JSON(http.StatusBadRequest, wrapper.NewErrorResponse(
 			errors.NewBadRequestError("validation error"),
@@ -80,7 +95,7 @@ func handleValidationErrors(c *gin.Context, err validator.ValidationErrors, logg
 }
 
 // handleDatabaseError processes database-specific errors
-func handleDatabaseError(c *gin.Context, err *pq.Error, logger logger.Logger) {
+func (m *ErrorHandlerMiddleware) handleDatabaseError(c *gin.Context, err *pq.Error) {
 	if err == nil {
 		c.JSON(http.StatusInternalServerError, wrapper.NewErrorResponse(
 			errors.NewInternalServerError("database error"),
@@ -98,10 +113,13 @@ func handleDatabaseError(c *gin.Context, err *pq.Error, logger logger.Logger) {
 			errors.NewBadRequestError("invalid reference"),
 		))
 	default:
-		logger.WithContext(c.Request.Context()).
+		m.logger.WithContext(c.Request.Context()).
 			WithError(err).
-			WithField("code", string(err.Code)).
-			WithField("path", c.Request.URL.Path).
+			WithFields(map[string]interface{}{
+				"code":   string(err.Code),
+				"path":   c.Request.URL.Path,
+				"method": c.Request.Method,
+			}).
 			Error("database error")
 		c.JSON(http.StatusInternalServerError, wrapper.NewErrorResponse(
 			errors.NewInternalServerError("database error"),

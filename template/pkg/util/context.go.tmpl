@@ -4,9 +4,21 @@ import (
 	"context"
 	"fmt"
 
-	"{{.Name}}/pkg/authentication"
 	"github.com/google/uuid"
 )
+
+type ContextKey string
+
+const (
+	UserID   ContextKey = "user_id"
+	Email    ContextKey = "email"
+	Username ContextKey = "username"
+	Role     ContextKey = "role"
+)
+
+func (c ContextKey) String() string {
+	return string(c)
+}
 
 // UserIDFromCTX extracts the user ID from the context
 func UserIDFromCTX(ctx context.Context) uuid.UUID {
@@ -14,7 +26,7 @@ func UserIDFromCTX(ctx context.Context) uuid.UUID {
 		return uuid.Nil
 	}
 
-	userIDStr, ok := ctx.Value(authentication.UserID).(string)
+	userIDStr, ok := ctx.Value(UserID).(string)
 	if !ok || userIDStr == "" {
 		return uuid.Nil
 	}
@@ -33,7 +45,7 @@ func UserEmailFromCTX(ctx context.Context) string {
 		return ""
 	}
 
-	email, ok := ctx.Value(authentication.Email).(string)
+	email, ok := ctx.Value(Email).(string)
 	if !ok {
 		return ""
 	}
@@ -46,24 +58,24 @@ func UsernameFromCTX(ctx context.Context) string {
 		return ""
 	}
 
-	username, ok := ctx.Value(authentication.Username).(string)
+	username, ok := ctx.Value(Username).(string)
 	if !ok {
 		return ""
 	}
 	return username
 }
 
-// RolesFromCTX extracts the roles from the context
-func RolesFromCTX(ctx context.Context) string {
+// RoleFromCTX extracts the role from the context
+func RoleFromCTX(ctx context.Context) string {
 	if ctx == nil {
 		return ""
 	}
 
-	roles, ok := ctx.Value(authentication.Roles).(string)
+	role, ok := ctx.Value(Role).(string)
 	if !ok {
 		return ""
 	}
-	return roles
+	return role
 }
 
 // RequestIDFromCTX extracts the request ID from the context
@@ -106,9 +118,9 @@ func GetUserInfo(ctx context.Context) (uuid.UUID, string, string, string) {
 	userID := UserIDFromCTX(ctx)
 	email := UserEmailFromCTX(ctx)
 	username := UsernameFromCTX(ctx)
-	roles := RolesFromCTX(ctx)
+	role := RoleFromCTX(ctx)
 
-	return userID, email, username, roles
+	return userID, email, username, role
 }
 
 // ValidateContext validates that the context contains required user information

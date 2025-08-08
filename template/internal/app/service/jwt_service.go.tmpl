@@ -1,0 +1,137 @@
+package service
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"{{.Name}}/config"
+	"{{.Name}}/pkg/errors"
+	"{{.Name}}/pkg/util"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/gin-gonic/gin"
+)
+
+type JwtService struct {
+	cfg *config.JWTConfig
+}
+
+func NewJwtService(cfg *config.Config) *JwtService {
+	return &JwtService{cfg: &cfg.JWT}
+}
+
+type Claims struct {
+	UserID   string `json:"user_id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+	jwt.RegisteredClaims
+}
+
+func (s *JwtService) GenerateToken(userID string, email string, username string, role string) (string, error) {
+	claims := &Claims{
+		UserID:   userID,
+		Email:    email,
+		Username: username,
+		Role:     role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(s.cfg.ExpirationTime) * time.Minute)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(s.cfg.Secret))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+func (s *JwtService) ValidateToken(c *gin.Context) error {
+	if token := c.Query("token"); token != "" {
+		return nil
+	}
+
+	bearerToken := c.Request.Header.Get("Authorization")
+	if bearerToken == "" {
+		return errors.NewUnauthorizedError("no token provided")
+	}
+
+	tokenParts := strings.Split(bearerToken, " ")
+	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+		return errors.NewUnauthorizedError("no token provided")
+	}
+
+	tokenStr := tokenParts[1]
+
+	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(s.cfg.Secret), nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("token validation failed: %w", err)
+	}
+
+	if !token.Valid {
+		return errors.NewUnauthorizedError("invalid token")
+	}
+
+	claimsMap, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return errors.NewUnauthorizedError("invalid token claims")
+	}
+
+	claims, err := s.extractClaims(claimsMap)
+	if err != nil {
+		return errors.NewUnauthorizedError("invalid token claims")
+	}
+
+	s.addClaimsToContext(c, claims)
+
+	return nil
+}
+
+func (s *JwtService) extractClaims(claims jwt.MapClaims) (*Claims, error) {
+	userID, ok := claims[util.UserID.String()].(string)
+	if !ok || userID == "" {
+		return nil, errors.NewUnauthorizedError("invalid user ID in token")
+	}
+
+	email, ok := claims[util.Email.String()].(string)
+	if !ok || email == "" {
+		return nil, errors.NewUnauthorizedError("invalid email in token")
+	}
+
+	username, ok := claims[util.Username.String()].(string)
+	if !ok || username == "" {
+		return nil, errors.NewUnauthorizedError("invalid username in token")
+	}
+
+	role, ok := claims[util.Role.String()].(string)
+	if !ok || role == "" {
+		return nil, errors.NewUnauthorizedError("invalid role in token")
+	}
+
+	return &Claims{
+		UserID:   userID,
+		Email:    email,
+		Username: username,
+		Role:     role,
+	}, nil
+}
+
+func (s *JwtService) addClaimsToContext(c *gin.Context, claims *Claims) {
+	ctx := context.WithValue(c.Request.Context(), util.UserID, claims.UserID)
+	ctx = context.WithValue(ctx, util.Email, claims.Email)
+	ctx = context.WithValue(ctx, util.Username, claims.Username)
+	ctx = context.WithValue(ctx, util.Role, claims.Role)
+
+	c.Request = c.Request.WithContext(ctx)
+}

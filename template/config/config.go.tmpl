@@ -25,22 +25,23 @@ const (
 
 // Config represents the application configuration
 type Config struct {
-	DB     DBConfig `envconfig:"DB"`
-	JWT    JWTConfig `envconfig:"JWT"`
-	Server ServerCfg `envconfig:"SERVER"`
+	DB      DatabaseConfig `envconfig:"DB"`
+	JWT     JWTConfig `envconfig:"JWT"`
+	Server  ServerCfg `envconfig:"SERVER"`
+	Cors    CorsCfg   `envconfig:"CORS"`
 }
 
 // DBConfig represents database configuration
-type DBConfig struct {
+type DatabaseConfig struct {
 	Host               string        `envconfig:"DB_HOST" default:"localhost"`
 	Port               string        `envconfig:"DB_PORT" default:"5432"`
 	User               string        `envconfig:"DB_USER" default:"postgres"`
 	Password           string        `envconfig:"DB_PASSWORD" default:"postgres"`
 	DBName             string        `envconfig:"DB_NAME" default:"postgres"`
 	SSLMode            string        `envconfig:"DB_SSL_MODE" default:"disable"`
-	SetMaxIdleConns    int           `envconfig:"SET_MAX_IDLE_CONNS" default:"10"`
-	SetMaxOpenConns    int           `envconfig:"SET_MAX_OPEN_CONNS" default:"100"`
-	SetConnMaxLifetime time.Duration `envconfig:"SET_CONN_MAX_LIFETIME" default:"1h"`
+	SetMaxIdleConns    int           `envconfig:"DB_SET_MAX_IDLE_CONNS" default:"10"`
+	SetMaxOpenConns    int           `envconfig:"DB_SET_MAX_OPEN_CONNS" default:"100"`
+	SetConnMaxLifetime time.Duration `envconfig:"DB_SET_CONN_MAX_LIFETIME" default:"1h"`
 }
 
 // JWTConfig represents JWT configuration
@@ -59,6 +60,16 @@ type ServerCfg struct {
 	Production bool   `envconfig:"PRODUCTION" default:"false"`
 }
 
+// CorsCfg represents CORS configuration
+type CorsCfg struct {
+	AllowOrigins []string `envconfig:"CORS_ALLOW_ORIGINS" default:"*"`
+	AllowMethods []string `envconfig:"CORS_ALLOW_METHODS" default:"GET,POST,PUT,PATCH,DELETE,OPTIONS"`
+	AllowHeaders []string `envconfig:"CORS_ALLOW_HEADERS" default:"Content-Type,X-XSRF-TOKEN,Accept,Origin,X-Requested-With,Authorization"`
+	ExposeHeaders []string `envconfig:"CORS_EXPOSE_HEADERS" default:"Content-Length,Authorization"`
+	AllowCredentials bool `envconfig:"CORS_ALLOW_CREDENTIALS" default:"true"`
+	MaxAge time.Duration `envconfig:"CORS_MAX_AGE" default:"48h"`
+}
+
 // NewConfig creates a new configuration instance
 func NewConfig() (*Config, error) {
 	if err := LoadConfig(); err != nil {
@@ -67,7 +78,16 @@ func NewConfig() (*Config, error) {
 
 	var cfg Config
 
-	if err := envconfig.Process("", &cfg); err != nil {
+	if err := envconfig.Process("", &cfg.DB); err != nil {
+		return nil, fmt.Errorf("failed to process config: %w", err)
+	}
+	if err := envconfig.Process("", &cfg.JWT); err != nil {	
+		return nil, fmt.Errorf("failed to process config: %w", err)
+	}
+	if err := envconfig.Process("", &cfg.Server); err != nil {
+		return nil, fmt.Errorf("failed to process config: %w", err)
+	}
+	if err := envconfig.Process("", &cfg.Cors); err != nil {
 		return nil, fmt.Errorf("failed to process config: %w", err)
 	}
 

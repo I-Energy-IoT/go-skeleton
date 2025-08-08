@@ -8,18 +8,28 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type LoggingMiddleware struct {
+	logger logger.Logger
+}
+
+func NewLoggingMiddleware(logger logger.Logger) *LoggingMiddleware {
+	return &LoggingMiddleware{logger: logger}
+}
+
 // LoggingMiddleware provides request logging for HTTP requests
-func LoggingMiddleware(logger logger.Logger) gin.HandlerFunc {
+func (m *LoggingMiddleware) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 
 		// Create a child logger with request context
-		reqLogger := logger.
+		reqLogger := m.logger.
 			WithContext(c.Request.Context()).
-			WithField("method", c.Request.Method).
-			WithField("path", c.Request.URL.Path).
-			WithField("client_ip", c.ClientIP()).
-			WithField("user_agent", c.Request.UserAgent())
+			WithFields(map[string]interface{}{
+				"method":     c.Request.Method,
+				"path":       c.Request.URL.Path,
+				"client_ip":  c.ClientIP(),
+				"user_agent": c.Request.UserAgent(),
+			})
 
 		// Process request
 		c.Next()

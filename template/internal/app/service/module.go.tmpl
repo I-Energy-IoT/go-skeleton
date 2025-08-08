@@ -1,7 +1,11 @@
 package service
 
 import (
+	"{{.Name}}/internal/domain/service"
+
 	"go.uber.org/fx"
 )
 
-var Module = fx.Options()
+var Module = fx.Options(
+	fx.Provide(fx.Annotate(NewJwtService, fx.As(new(service.JwtService)))),
+)

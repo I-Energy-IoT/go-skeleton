@@ -21,9 +21,34 @@ type TemplateData struct {
 
 var projectName string
 
+const banner = `
+    ╔═══════════════════════════════════════════════════════════════════╗
+    ║                                                                   ║
+    ║   ██████╗  ██████╗        ███████╗██╗  ██╗███████╗██╗     ███████╗║
+    ║  ██╔════╝ ██╔═══██╗       ██╔════╝██║ ██╔╝██╔════╝██║     ██╔════╝║
+    ║  ██║  ███╗██║   ██║ █████╗███████╗█████╔╝ █████╗  ██║     █████╗  ║
+    ║  ██║   ██║██║   ██║ ╚════╝╚════██║██╔═██╗ ██╔══╝  ██║     ██╔══╝  ║
+    ║  ╚██████╔╝╚██████╔╝       ███████║██║  ██╗███████╗███████╗███████╗║
+    ║   ╚═════╝  ╚═════╝        ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝║
+    ║                                                                   ║
+    ║            🚀 Modern Go REST API Generator with UberFX            ║
+    ║                                                                   ║
+    ╚═══════════════════════════════════════════════════════════════════╝
+`
+
 var rootCmd = &cobra.Command{
 	Use:   "go-skeleton",
 	Short: "A CLI tool to generate Go REST API project structure",
+	Long: banner + `
+A powerful CLI tool to generate production-ready Go REST API projects with:
+• Clean Architecture structure
+• UberFX dependency injection
+• Structured logging with Zap
+• JWT authentication
+• GORM with PostgreSQL
+• Docker configuration
+• Comprehensive middleware
+• API documentation with Swagger`,
 }
 
 var newCmd = &cobra.Command{
@@ -43,9 +68,55 @@ var newCmd = &cobra.Command{
 			return fmt.Errorf("failed to generate project: %w", err)
 		}
 
-		fmt.Printf("Successfully created project: %s\n", projectName)
+		printSuccessMessage(projectName)
 		return nil
 	},
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Show version information",
+	Run: func(cmd *cobra.Command, args []string) {
+		versionBanner := `
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║                                                               ║
+    ║   🔧 Go-Skeleton v1.0.7                                      ║
+    ║   🏗️  Modern Go REST API Generator                            ║
+    ║   📅 Built with ❤️  using Go 1.24                            ║
+    ║                                                               ║
+    ║   🚀 Features:                                                ║
+    ║   • Clean Architecture                                        ║
+    ║   • UberFX Dependency Injection                              ║
+    ║   • Structured Logging                                        ║
+    ║   • JWT Authentication                                        ║
+    ║   • PostgreSQL with GORM                                      ║
+    ║                                                               ║
+    ╚═══════════════════════════════════════════════════════════════╝
+`
+		fmt.Print(versionBanner)
+	},
+}
+
+func printSuccessMessage(projectName string) {
+	successBanner := fmt.Sprintf(`
+    ╔══════════════════════════════════════════════════════════════════╗
+    ║                                                                  ║
+    ║                 ✅ PROJECT CREATED SUCCESSFULLY! ✅               ║
+    ║                                                                  ║
+    ║  📁 Project: %-51s ║
+    ║                                                                  ║
+    ║  🎯 Next steps:                                                  ║
+    ║     1. cd %s                                          ║
+    ║     2. go mod tidy                                               ║
+    ║     3. cp .env.example .env                                      ║
+    ║     4. go run cmd/app/main.go                                    ║
+    ║                                                                  ║
+    ║  🚀 Happy coding with Go + UberFX!                              ║
+    ║                                                                  ║
+    ╚══════════════════════════════════════════════════════════════════╝
+`, projectName, projectName)
+
+	fmt.Print(successBanner)
 }
 
 func validateProjectName(name string) error {
@@ -130,6 +201,7 @@ func init() {
 	newCmd.Flags().StringVarP(&projectName, "name", "n", "", "Project name")
 	newCmd.MarkFlagRequired("name")
 	rootCmd.AddCommand(newCmd)
+	rootCmd.AddCommand(versionCmd)
 }
 
 func main() {

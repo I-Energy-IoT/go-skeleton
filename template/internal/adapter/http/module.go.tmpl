@@ -2,12 +2,14 @@ package http
 
 import (
 	"{{.Name}}/internal/adapter/http/handler"
+	"{{.Name}}/internal/adapter/http/middleware"
 	"{{.Name}}/internal/adapter/http/router"
 
 	"go.uber.org/fx"
 )
 
 var Module = fx.Options(
+	middleware.Module,
 	handler.Module,
 	router.Module,
 )

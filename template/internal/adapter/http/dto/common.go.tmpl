@@ -1,14 +1,24 @@
 package dto
 
-import "github.com/google/uuid"
+import (
+	"math"
+
+	"github.com/google/uuid"
+)
 
 // PaginationRequest represents common pagination parameters
 type PaginationRequest struct {
-	Page         int    `form:"page" json:"page" default:"0" validate:"min=0"`
+	Page         int    `form:"page" json:"page" default:"1" validate:"min=1"`
 	PageSize     int    `form:"pageSize" json:"pageSize" default:"10" validate:"min=1,max=100"`
-	SortProperty string `form:"sortProperty" json:"sortProperty"`
+	SortProperty string `form:"sortProperty" json:"sortProperty,omitempty"`
 	SortOrder    string `form:"sortOrder" json:"sortOrder" default:"ASC" validate:"oneof=ASC DESC"`
-	TextSearch   string `form:"textSearch" json:"textSearch"`
+	TextSearch   string `form:"textSearch" json:"textSearch,omitempty"`
+}
+
+func (p *PaginationRequest) GetOffsetAndLimit() (int, int) {
+	offset := (p.Page - 1) * p.PageSize
+	limit := p.PageSize
+	return offset, limit
 }
 
 // PaginationResponse represents common pagination response
@@ -19,6 +29,15 @@ type PaginationResponse struct {
 	PageSize      int  `json:"pageSize"`
 	HasNext       bool `json:"hasNext"`
 	HasPrevious   bool `json:"hasPrevious"`
+}
+
+func (p *PaginationResponse) SetPagination(totalElements int, pageSize int, currentPage int) {
+	p.TotalPages = int(math.Ceil(float64(totalElements) / float64(pageSize)))
+	p.TotalElements = totalElements
+	p.CurrentPage = currentPage
+	p.PageSize = pageSize
+	p.HasNext = currentPage < p.TotalPages
+	p.HasPrevious = currentPage > 1
 }
 
 // PagedResponse represents a paginated response with generic data

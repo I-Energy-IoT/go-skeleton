@@ -8,14 +8,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type RecoverMiddleware struct {
+	logger logger.Logger
+}
+
+func NewRecoverMiddleware(logger logger.Logger) *RecoverMiddleware {
+	return &RecoverMiddleware{logger: logger}
+}
+
 // Recover provides panic recovery for HTTP requests
-func Recover(l logger.Logger) gin.HandlerFunc {
+func (m *RecoverMiddleware) Middleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				l.WithError(err.(error)).
-					WithField("path", ctx.Request.URL.Path).
-					WithField("method", ctx.Request.Method).
+				m.	logger.WithError(err.(error)).
+					WithFields(map[string]interface{}{
+						"path":   ctx.Request.URL.Path,
+						"method": ctx.Request.Method,
+					}).
 					Error("panic recovered")
 				
 				ctx.Header("content-type", "application/json")

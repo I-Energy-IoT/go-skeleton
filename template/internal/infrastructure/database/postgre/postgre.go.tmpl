@@ -1,4 +1,4 @@
-package database
+package postgre
 
 import (
 	"context"
@@ -13,13 +13,13 @@ import (
 	gormLogger "gorm.io/gorm/logger"
 )
 
-type database struct {
+type connection struct {
 	DB     *gorm.DB
 	logger logger.Logger
 }
 
 // PostgreDB defines the interface for database operations
-type Database interface {
+type Connection interface {
 	GetDB() *gorm.DB
 	BeginTransaction(ctx context.Context) (*gorm.DB, error)
 	ReleaseTransaction(ctx context.Context, tx *gorm.DB, err *error)
@@ -64,8 +64,8 @@ func NewPostgreDB(config *config.Config, log logger.Logger) (*gorm.DB, error) {
 }
 
 // NewPostgreDB creates a new PostgreSQL database connection
-func NewDatabase(db *gorm.DB, log logger.Logger) (Database, error) {
-	return &database{DB: db, logger: log}, nil
+func NewConnection(db *gorm.DB, log logger.Logger) (Connection, error) {
+	return &connection{DB: db, logger: log}, nil
 }
 
 // RunPostgreDB manages the database lifecycle
@@ -83,22 +83,22 @@ func RunPostgreDB(lc fx.Lifecycle, db *gorm.DB, log logger.Logger) {
 }
 
 // BeginTransaction starts a new database transaction
-func (d *database) BeginTransaction(ctx context.Context) (*gorm.DB, error) {
+func (d *connection) BeginTransaction(ctx context.Context) (*gorm.DB, error) {
 	return d.DB.WithContext(ctx).Begin(), nil
 }
 
 // CommitTransaction commits the database transaction
-func (d *database) CommitTransaction(ctx context.Context, tx *gorm.DB) error {
+func (d *connection) CommitTransaction(ctx context.Context, tx *gorm.DB) error {
 	return tx.WithContext(ctx).Commit().Error
 }
 
 // GetDB returns the underlying GORM database instance
-func (d *database) GetDB() *gorm.DB {
+func (d *connection) GetDB() *gorm.DB {
 	return d.DB
 }
 
 // ReleaseTransaction releases the database transaction
-func (d *database) ReleaseTransaction(ctx context.Context, tx *gorm.DB, err *error) {
+func (d *connection) ReleaseTransaction(ctx context.Context, tx *gorm.DB, err *error) {
 	if *err != nil {
 		d.RollbackTransaction(ctx, tx)
 		d.logger.WithError(*err).Error("transaction failed, rolling back")
@@ -110,6 +110,6 @@ func (d *database) ReleaseTransaction(ctx context.Context, tx *gorm.DB, err *err
 }
 
 // RollbackTransaction rolls back the database transaction
-func (d *database) RollbackTransaction(ctx context.Context, tx *gorm.DB) error {
+func (d *connection) RollbackTransaction(ctx context.Context, tx *gorm.DB) error {
 	return tx.WithContext(ctx).Rollback().Error
 }

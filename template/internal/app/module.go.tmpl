@@ -1,7 +1,13 @@
 package app
 
 import (
+	"{{.Name}}/internal/app/service"
+	"{{.Name}}/internal/app/validator"
+
 	"go.uber.org/fx"
 )
 
-var Module = fx.Options()
+var Module = fx.Options(
+	validator.Module,
+	service.Module,
+)

@@ -43,6 +43,9 @@ build: ## Build the application
 run: ## Run the application
 	bin/app
 
+run-dev: ## Run the application in development mode
+	go run $(APP_DIR)/main.go
+
 test: ## Run tests
 	go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 

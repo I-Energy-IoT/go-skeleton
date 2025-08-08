@@ -1,0 +1,13 @@
+package postgre
+
+import (
+	"{{.Name}}/internal/infrastructure/database/postgre/repository"
+
+	"go.uber.org/fx"
+)
+
+var Module = fx.Options(
+	fx.Provide(NewPostgreDB),
+	fx.Provide(NewConnection),
+	repository.Module,
+)

@@ -1,0 +1,28 @@
+package middleware
+
+import (
+	"{{.Name}}/config"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+)
+
+type CorsMiddleware struct {
+	config *config.Config
+}
+
+func NewCorsMiddleware(config *config.Config) *CorsMiddleware {
+	return &CorsMiddleware{config: config}
+}
+
+// CorsMiddleware provides CORS configuration for HTTP requests
+func (m *CorsMiddleware) Middleware() gin.HandlerFunc {
+	return cors.New(cors.Config{
+		AllowOrigins:     m.config.Cors.AllowOrigins,
+		AllowMethods:     m.config.Cors.AllowMethods,
+		AllowHeaders:     m.config.Cors.AllowHeaders,
+		ExposeHeaders:    m.config.Cors.ExposeHeaders,
+		AllowCredentials: m.config.Cors.AllowCredentials,
+		MaxAge:           m.config.Cors.MaxAge,
+	})
+}

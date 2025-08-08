@@ -1,8 +1,7 @@
 package router
 
 import (
-	"{{.Name}}/internal/app/middleware"
-	"{{.Name}}/pkg/logger"
+	"{{.Name}}/internal/adapter/http/middleware"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
@@ -10,15 +9,20 @@ import (
 
 type RouterParams struct {
 	fx.In
-	Logger logger.Logger
+	CorsMiddleware *middleware.CorsMiddleware
+	LoggingMiddleware *middleware.LoggingMiddleware
+	ErrorHandlerMiddleware *middleware.ErrorHandlerMiddleware
+	RecoverMiddleware *middleware.RecoverMiddleware
+	JwtAuthMiddleware *middleware.JwtAuthMiddleware
 }
 
 func NewRouter(params RouterParams) *gin.Engine {
 	router := gin.Default()
 
-	router.Use(middleware.CorsMiddleware())
-	router.Use(middleware.LoggingMiddleware(params.Logger))
-	router.Use(middleware.ErrorHandlerMiddleware(params.Logger))
+	router.Use(params.CorsMiddleware.Middleware())
+	router.Use(params.LoggingMiddleware.Middleware())
+	router.Use(params.ErrorHandlerMiddleware.Middleware())
+	router.Use(params.RecoverMiddleware.Middleware())
 
 	router.Group("/api/v1")
 
