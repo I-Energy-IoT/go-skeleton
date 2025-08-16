@@ -1,6 +1,6 @@
 # Go Skeleton - Clean Architecture REST API Generator
 
-A powerful CLI tool for generating production-ready Go REST API projects with Clean Architecture, dependency injection, and comprehensive tooling for I-Energy IoT projects.
+A powerful CLI tool for generating production-ready Go REST API projects with Clean Architecture, dependency injection, and comprehensive tooling for I-Energy IoT projects. Built with modern Go practices and industry standards.
 
 ## 🚀 Features
 
@@ -8,23 +8,28 @@ A powerful CLI tool for generating production-ready Go REST API projects with Cl
 - **Clean Architecture** implementation with clear separation of concerns
 - **Uber FX** dependency injection framework for robust service management
 - **Gin** web framework with middleware support
-- **Structured logging** with Zap logger
-- **Configuration management** with environment-based settings
-- **Graceful shutdown** handling
+- **Structured logging** with Zap logger and context support
+- **Configuration management** with environment-based settings using Viper
+- **Graceful shutdown** handling with proper resource cleanup
+- **Health checks** with built-in endpoints for monitoring
 
 ### Authentication & Security
 - **JWT authentication** with token generation and validation
-- **Role-based access control** (RBAC) middleware
-- **CORS** configuration
+- **Role-based access control** (RBAC) middleware with context management
+- **CORS** configuration with security headers
 - **Request validation** with go-playground/validator
-- **Error handling** with custom error types
+- **Error handling** with custom error types and centralized error responses
+- **Panic recovery** with automatic error handling
+- **Request logging** with structured data and performance metrics
 
 ### Database & Data Layer
 - **PostgreSQL** support with GORM ORM
 - **Database migrations** with golang-migrate
-- **Repository pattern** implementation
-- **Soft delete** support
-- **Connection pooling** configuration
+- **Repository pattern** implementation with interface-based design
+- **Soft delete** support with GORM plugin
+- **Connection pooling** configuration with optimized settings
+- **UUID primary keys** with native PostgreSQL support
+- **JSON field handling** with custom GORM types for flexible data storage
 
 ### API Documentation
 - **Swagger/OpenAPI** documentation generation
@@ -32,11 +37,13 @@ A powerful CLI tool for generating production-ready Go REST API projects with Cl
 - **Interactive API explorer** at `/swagger`
 
 ### Development Tools
-- **Mock generation** with Mockery
+- **Mock generation** with Mockery for interface testing
 - **Code formatting** with goimports
 - **Linting** with golangci-lint
-- **Testing** framework with coverage reporting
+- **Testing** framework with coverage reporting and table-driven tests
 - **Make commands** for common development tasks
+- **Interface-based design** for easy testing and mocking
+- **Table-driven testing** patterns for comprehensive test coverage
 
 ### Deployment & DevOps
 - **Kubernetes** deployment templates
@@ -47,11 +54,13 @@ A powerful CLI tool for generating production-ready Go REST API projects with Cl
 - **Environment-specific** configurations
 
 ### Testing & Quality
-- **Unit testing** framework
-- **Integration testing** setup
-- **Mock generation** for testing
-- **Code coverage** reporting
+- **Unit testing** framework with comprehensive coverage
+- **Integration testing** setup with database testing
+- **Mock generation** for testing with interface-based design
+- **Code coverage** reporting with detailed metrics
 - **Git conventions** and workflow guidelines
+- **Table-driven tests** for comprehensive scenario coverage
+- **Race condition detection** with Go's built-in race detector
 
 ## 📦 Installation
 
@@ -81,36 +90,29 @@ myservice/
 │   │   └── http/        # HTTP delivery mechanism
 │   │       ├── dto/     # Data Transfer Objects
 │   │       ├── handler/ # HTTP request handlers
+│   │       ├── middleware/ # HTTP middleware (CORS, Auth, Logging, etc.)
 │   │       └── router/  # Route definitions
 │   ├── app/             # Application layer
-│   │   ├── middleware/  # Application middlewares
-│   │   │   ├── cors.go           # CORS configuration
-│   │   │   ├── error_handler.go  # Error handling middleware
-│   │   │   ├── jwt_auth.go       # JWT authentication
-│   │   │   ├── logging.go        # Request logging
-│   │   │   └── recover.go        # Panic recovery
-│   │   ├── service/     # Application services
+│   │   ├── service/     # Application services with interface-based design
 │   │   └── validator/   # Request validation
 │   ├── domain/          # Domain models and business logic
 │   │   ├── entity/      # Domain entities
-│   │   │   └── base_entity.go # Base entity with common fields
+│   │   │   ├── base_entity.go # Base entity with UUID and timestamps
+│   │   │   └── json.go  # Custom JSON field handling for GORM
 │   │   ├── enum/        # Domain enums and constants
 │   │   ├── repository/  # Repository interfaces
-│   │   └── service/     # Domain services
+│   │   └── service/     # Domain service interfaces
 │   └── infrastructure/  # Infrastructure implementations
 │       ├── database/    # Database implementations
-│       │   └── postgre.go # PostgreSQL connection
-│       ├── external/    # External service integrations
-│       └── repository/  # Repository implementations
+│       │   └── postgre/ # PostgreSQL specific implementation
+│       └── external/    # External service integrations
 ├── pkg/                # Public libraries
-│   ├── authentication/ # JWT authentication utilities
-│   │   └── jwt.go     # Token generation and validation
 │   ├── errors/         # Custom error types and handling
 │   ├── graceful/       # Graceful shutdown utilities
 │   ├── logger/         # Structured logging with Zap
 │   ├── swagger/        # API documentation setup
 │   ├── util/           # Common utilities
-│   │   └── context.go  # Context utilities
+│   │   └── context.go  # Context utilities for JWT claims
 │   └── wrapper/        # Response wrappers
 ├── test/              # Test suites
 │   └── integration/   # Integration tests
@@ -125,10 +127,11 @@ myservice/
 ## 🛠️ Requirements
 
 - **Go 1.24** or higher
-- **PostgreSQL 15** or higher (configurable)
+- **PostgreSQL 12** or higher (configurable)
 - **Git**
 - **Docker** (for containerization)
 - **Kubernetes** (for deployment)
+- **Make** (for development commands)
 
 ## 🚀 Getting Started
 
@@ -179,6 +182,13 @@ make build
 make run
 ```
 
+### 7. Access the Application
+
+Once running, you can access:
+- **API**: `http://localhost:8080`
+- **Health Check**: `http://localhost:8080/health`
+- **Swagger UI**: `http://localhost:8080/swagger/`
+
 ## 🔧 Development
 
 ### Available Make Commands
@@ -212,9 +222,20 @@ make run
 ### Testing
 
 #### Unit Tests
-1. Right-click on the interface
-2. Choose "Go: Generate Unit Tests For File"
-3. Complete your test cases
+```bash
+# Run all unit tests
+go test ./...
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run tests with race detection
+go test -race ./...
+
+# Run specific test packages
+go test ./internal/app/service/...
+go test ./internal/adapter/http/...
+```
 
 #### Integration Tests
 ```bash
@@ -225,6 +246,12 @@ make test
 ```bash
 make generate-mock
 ```
+
+#### Testing Guidelines
+- Use table-driven tests for comprehensive coverage
+- Mock external dependencies using interfaces
+- Aim for at least 80% test coverage
+- Test both success and error scenarios
 
 ### Code Generation
 
@@ -264,15 +291,28 @@ make generate-mock
 
 ### Dependency Injection
 
-The project uses **Uber FX** for dependency injection:
+The project uses **Uber FX** for dependency injection with modular design:
 
 ```go
 app := fx.New(
     config.Module,
     logger.Module,
+    fx.WithLogger(func(log logger.Logger) fxevent.Logger {
+        return log
+    }),
     internal.Module,
-    fx.Invoke(startServer),
 )
+```
+
+### Interface-Based Design
+
+Services are designed with interfaces for better testability:
+
+```go
+type JwtService interface {
+    GenerateToken(userID string, email string, username string, role string) (string, error)
+    ValidateToken(c *gin.Context) error
+}
 ```
 
 ### Configuration Management
@@ -293,11 +333,14 @@ Environment-based configuration with support for:
 
 ### Database Layer
 
-- **GORM ORM**: Object-relational mapping
-- **PostgreSQL**: Primary database support
+- **GORM ORM**: Object-relational mapping with PostgreSQL support
+- **PostgreSQL**: Primary database with native UUID support
 - **Migrations**: Version-controlled schema changes
-- **Repository Pattern**: Clean data access abstraction
-- **Connection Pooling**: Optimized database connections
+- **Repository Pattern**: Clean data access abstraction with interfaces
+- **Connection Pooling**: Optimized database connections with configurable settings
+- **Soft Deletes**: Logical deletion with GORM plugin
+- **JSON Fields**: Custom JSON field handling for flexible data storage
+- **UUID Primary Keys**: Native PostgreSQL UUID support with auto-generation
 
 ## 🚀 Deployment
 
@@ -335,7 +378,17 @@ app:
         secretKeyRef:
           name: jwt-secret
           key: secret
+    - name: DB_SET_MAX_OPEN_CONNS
+      value: "100"
+    - name: DB_SET_MAX_IDLE_CONNS
+      value: "10"
 ```
+
+### Health Check Endpoints
+
+The application provides built-in health check endpoints:
+- **Health**: `GET /health` - Basic health status
+- **Readiness**: `GET /ready` - Application readiness
 
 ## 📚 API Documentation
 
@@ -357,9 +410,18 @@ make swagger-build
 
 ```
 test/
-├── integration/     # Integration tests
-└── unit/           # Unit tests (generated)
+├── integration/     # Integration tests with database
+├── unit/           # Unit tests (generated)
+└── fixtures/       # Test data and fixtures
 ```
+
+### Testing Best Practices
+
+- **Table-Driven Tests**: Use table-driven tests for comprehensive coverage
+- **Interface Mocking**: Mock external dependencies using interfaces
+- **Database Testing**: Use test containers for integration tests
+- **Coverage Goals**: Aim for at least 80% test coverage
+- **Race Detection**: Use `-race` flag for concurrent code testing
 
 ### Running Tests
 
@@ -372,6 +434,13 @@ go test -v -race -coverprofile=coverage.txt ./...
 
 # View coverage report
 go tool cover -html=coverage.txt
+
+# Run specific test packages
+go test ./internal/app/service/...
+go test ./internal/adapter/http/...
+
+# Run tests with race detection
+go test -race ./...
 ```
 
 ## 📝 Git Workflow
@@ -414,6 +483,9 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=postgres
 DB_SSL_MODE=disable
+DB_SET_MAX_IDLE_CONNS=10
+DB_SET_MAX_OPEN_CONNS=100
+DB_SET_CONN_MAX_LIFETIME=1h
 
 # JWT Configuration
 JWT_SECRET=your-secret-key
@@ -426,22 +498,33 @@ PORT=8080
 ENVIRONMENT=development
 GIN_MODE=debug
 PRODUCTION=false
+
+# CORS Configuration
+CORS_ALLOW_ORIGINS=*
+CORS_ALLOW_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
+CORS_ALLOW_HEADERS=Content-Type,X-XSRF-TOKEN,Accept,Origin,X-Requested-With,Authorization
+CORS_EXPOSE_HEADERS=Content-Length,Authorization
+CORS_ALLOW_CREDENTIALS=true
+CORS_MAX_AGE=48h
 ```
 
 ### Configuration Features
 
 - **Environment-based**: Different configs for dev/staging/prod
-- **Validation**: Required field validation
-- **Defaults**: Sensible default values
+- **Validation**: Required field validation with environment variables
+- **Defaults**: Sensible default values for all settings
 - **Hot-reload**: Configuration reloading support
+- **Database Pooling**: Configurable connection pool settings
+- **CORS Support**: Comprehensive CORS configuration options
 
 ## 🛡️ Security Features
 
 ### Authentication
-- JWT token-based authentication
-- Token expiration and refresh
-- Secure token validation
-- Context-based user extraction
+- JWT token-based authentication with secure token generation
+- Token expiration and refresh mechanisms
+- Secure token validation with proper error handling
+- Context-based user extraction for request processing
+- Interface-based JWT service for easy testing and mocking
 
 ### Authorization
 - Role-based access control
@@ -454,22 +537,25 @@ PRODUCTION=false
 - Error handling for invalid inputs
 
 ### Security Headers
-- CORS configuration
-- Security middleware
-- Panic recovery
+- CORS configuration with security headers
+- Security middleware with proper error handling
+- Panic recovery with graceful error responses
+- Request logging with structured data
+- Centralized error handling with proper HTTP status codes
 
 ## 📊 Monitoring & Observability
 
 ### Logging
-- Structured logging with Zap
-- Request/response logging
-- Error tracking
-- Performance metrics
+- Structured logging with Zap and context support
+- Request/response logging with performance metrics
+- Error tracking with detailed error information
+- Performance metrics and response time tracking
+- Context-aware logging with request correlation
 
 ### Health Checks
-- `/health` - Liveness probe
-- `/ready` - Readiness probe
-- Custom health check endpoints
+- `/health` - Liveness probe for basic health status
+- `/ready` - Readiness probe for application readiness
+- Custom health check endpoints for service-specific checks
 
 ### Metrics
 - Prometheus metrics support

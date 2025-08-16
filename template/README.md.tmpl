@@ -18,16 +18,20 @@ A modern, production-ready REST API built with Go, featuring clean architecture,
 
 ## ✨ Features
 
-- 🏗️ **Clean Architecture**: Organized in layers for maintainability
-- 🔌 **UberFX**: Dependency injection framework for better modularity
-- 📝 **Structured Logging**: Using Zap for high-performance logging
-- 🔐 **JWT Authentication**: Secure authentication with role-based access
-- 🗄️ **PostgreSQL**: Database integration with GORM
-- 🛡️ **Middleware**: CORS, error handling, request logging
-- 📚 **API Documentation**: Auto-generated with Swagger
-- 🐳 **Docker Ready**: Containerization support
-- 🧪 **Testing**: Comprehensive test structure
-- ⚙️ **Configuration**: Environment-based configuration management
+- 🏗️ **Clean Architecture**: Organized in layers for maintainability and testability
+- 🔌 **UberFX**: Dependency injection framework for better modularity and lifecycle management
+- 📝 **Structured Logging**: Using Zap for high-performance logging with context support
+- 🔐 **JWT Authentication**: Secure authentication with role-based access and context management
+- 🗄️ **PostgreSQL**: Database integration with GORM and soft delete support
+- 🛡️ **Middleware**: CORS, error handling, request logging, and panic recovery
+- 📚 **API Documentation**: Auto-generated with Swagger/OpenAPI
+- 🐳 **Docker Ready**: Containerization support with multi-stage builds
+- 🧪 **Testing**: Comprehensive test structure with table-driven tests
+- ⚙️ **Configuration**: Environment-based configuration management with Viper
+- 🔄 **Graceful Shutdown**: Proper application lifecycle management
+- 📊 **Health Checks**: Built-in health, readiness, and liveness endpoints
+- 🎯 **JSON Support**: Custom JSON field handling for GORM
+- 🏷️ **UUID Support**: Native UUID support with PostgreSQL
 
 ## 🚀 Quick Start
 
@@ -81,29 +85,34 @@ docker run -p 8080:8080 {{.Name}}
 ├── config/                  # Configuration management
 ├── internal/
 │   ├── adapter/
-│   │   └── http/           # HTTP handlers and routes
+│   │   └── http/           # HTTP handlers, routes, and middleware
+│   │       ├── dto/        # Data Transfer Objects
+│   │       ├── handler/    # HTTP handlers
+│   │       ├── middleware/ # HTTP middleware (CORS, Auth, Logging, etc.)
+│   │       └── router/     # Route definitions
 │   ├── app/
-│   │   ├── dto/            # Data Transfer Objects
-│   │   ├── middleware/     # HTTP middleware
-│   │   └── service/        # Business logic services
+│   │   ├── service/        # Business logic services
+│   │   └── validator/      # Request validation
 │   ├── domain/
-│   │   ├── entity/         # Domain entities
-│   │   └── enum/           # Domain enums
+│   │   ├── entity/         # Domain entities and models
+│   │   ├── enum/           # Domain enums
+│   │   ├── repository/     # Repository interfaces
+│   │   └── service/        # Domain service interfaces
 │   └── infrastructure/
-│       ├── database/       # Database configuration
-│       └── repository/     # Data access layer
+│       ├── database/       # Database configuration and connections
+│       │   └── postgre/    # PostgreSQL specific implementation
+│       └── external/       # External service integrations
 ├── pkg/
-│   ├── authentication/     # JWT utilities
-│   ├── errors/            # Error handling
-│   ├── graceful/          # Graceful shutdown
-│   ├── logger/            # Logging utilities
-│   ├── swagger/           # API documentation
-│   ├── util/              # Common utilities
-│   └── wrapper/           # Response wrappers
-├── test/                  # Test files
-├── deployment/            # Deployment configurations
-├── assets/               # Static assets
-└── static/               # Static files
+│   ├── errors/            # Custom error handling
+│   ├── graceful/          # Graceful shutdown utilities
+│   ├── logger/            # Structured logging with Zap
+│   ├── swagger/           # API documentation setup
+│   ├── util/              # Common utilities and helpers
+│   └── wrapper/           # HTTP response wrappers
+├── deployment/            # Deployment configurations (K8s, Docker)
+├── docs/                  # Documentation and guidelines
+├── template/              # Template files for code generation
+└── test/                  # Test files and fixtures
 ```
 
 ## ⚙️ Configuration
@@ -115,6 +124,7 @@ The application uses environment variables for configuration. Copy `.env.example
 PORT=8080
 ENVIRONMENT=development
 GIN_MODE=debug
+SERVER_URL=localhost
 
 # Database Configuration
 DB_HOST=localhost
@@ -123,9 +133,12 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME={{.Name}}
 DB_SSL_MODE=disable
+DB_SET_MAX_IDLE_CONNS=10
+DB_SET_MAX_OPEN_CONNS=100
+DB_SET_CONN_MAX_LIFETIME=1h
 
 # JWT Configuration
-JWT_SECRET=your-secret-key
+JWT_SECRET=your-secret-key-here
 JWT_EXPIRATION_TIME=24h
 JWT_REFRESH_EXPIRATION_TIME=168h
 
@@ -133,22 +146,54 @@ JWT_REFRESH_EXPIRATION_TIME=168h
 CORS_ALLOW_ORIGINS=*
 CORS_ALLOW_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
 CORS_ALLOW_HEADERS=Content-Type,X-XSRF-TOKEN,Accept,Origin,X-Requested-With,Authorization
+CORS_EXPOSE_HEADERS=Content-Length,Authorization
+CORS_ALLOW_CREDENTIALS=true
+CORS_MAX_AGE=48h
 ```
 
 ## 🛡️ Security Features
 
-- **JWT Authentication**: Secure token-based authentication
-- **Role-based Access Control**: Fine-grained permission system
-- **CORS Protection**: Configurable Cross-Origin Resource Sharing
-- **Input Validation**: Request validation using struct tags
-- **Rate Limiting**: (Ready to implement)
-- **Request Logging**: Comprehensive request/response logging
+- **JWT Authentication**: Secure token-based authentication with context management
+- **Role-based Access Control**: Fine-grained permission system with user context
+- **CORS Protection**: Configurable Cross-Origin Resource Sharing with security headers
+- **Input Validation**: Request validation using struct tags and custom validators
+- **Error Handling**: Centralized error handling with proper HTTP status codes
+- **Request Logging**: Comprehensive request/response logging with structured data
+- **Panic Recovery**: Automatic panic recovery with proper error responses
+- **Graceful Shutdown**: Proper cleanup and resource management
 
 ## 📚 API Documentation
 
 Once the server is running, visit:
 - **Swagger UI**: `http://localhost:8080/swagger/index.html`
 - **API Docs**: `http://localhost:8080/swagger/doc.json`
+
+## 🏗️ Architecture Highlights
+
+### Clean Architecture Implementation
+- **Domain Layer**: Core business logic and entities
+- **Application Layer**: Use cases and business services
+- **Infrastructure Layer**: External concerns (database, external APIs)
+- **Adapter Layer**: HTTP handlers and external interfaces
+
+### Dependency Injection with UberFX
+- **Modular Design**: Each layer is a separate module
+- **Lifecycle Management**: Proper startup and shutdown handling
+- **Interface-based Design**: Easy testing and mocking
+- **Configuration Injection**: Environment-based configuration
+
+### Database Design
+- **UUID Primary Keys**: Native PostgreSQL UUID support
+- **Soft Deletes**: Logical deletion with GORM soft delete plugin
+- **JSON Fields**: Custom JSON field handling for flexible data storage
+- **Connection Pooling**: Configurable database connection management
+
+### Security & Middleware
+- **JWT Authentication**: Token-based authentication with context management
+- **CORS Protection**: Configurable cross-origin resource sharing
+- **Error Handling**: Centralized error handling with proper HTTP responses
+- **Request Logging**: Structured logging with request context
+- **Panic Recovery**: Automatic panic recovery with graceful error responses
 
 ## 🧪 Testing
 
@@ -159,9 +204,25 @@ go test ./...
 # Run tests with coverage
 go test -cover ./...
 
-# Run integration tests
-go test ./test/integration/...
+# Run tests with race detection
+go test -race ./...
+
+# Run specific test packages
+go test ./internal/app/service/...
+go test ./internal/adapter/http/...
+
+# Generate coverage report
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
 ```
+
+### Testing Guidelines
+
+- **Unit Tests**: Test individual functions and methods in isolation
+- **Integration Tests**: Test component interactions and database operations
+- **Table-Driven Tests**: Use table-driven tests for comprehensive coverage
+- **Mocking**: Use interfaces for easy mocking and testing
+- **Coverage**: Aim for at least 80% test coverage
 
 ## 🚀 Deployment
 
@@ -171,19 +232,53 @@ go test ./test/integration/...
 - **Staging**: `staging.env`
 - **Production**: `production.env`
 
+### Docker Deployment:
+
+```bash
+# Build the application
+docker build -t {{.Name}} .
+
+# Run with environment variables
+docker run -p 8080:8080 --env-file .env {{.Name}}
+
+# Using Docker Compose
+docker-compose up --build
+```
+
 ### Kubernetes deployment:
 
 ```bash
-kubectl apply -f deployment/k8s/
+# Apply deployment configurations
+kubectl apply -f deployment/prd.yaml
+kubectl apply -f deployment/stg.yaml
+
+# Check deployment status
+kubectl get pods -l app={{.Name}}
 ```
+
+### Health Checks:
+
+The application provides built-in health check endpoints:
+- **Health**: `GET /health` - Basic health status
+- **Readiness**: `GET /ready` - Application readiness
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+2. Create a feature branch (`feature/your-feature-name`)
+3. Follow the coding standards and conventions
+4. Write tests for new functionality
+5. Commit your changes following conventional commits
+6. Push to the branch
+7. Create a Pull Request
+
+### Development Guidelines
+
+- Follow Go idiomatic practices and conventions
+- Use meaningful commit messages following conventional commits
+- Write comprehensive tests for new features
+- Update documentation as needed
+- Ensure all tests pass before submitting PR
 
 ## 📄 License
 
@@ -193,9 +288,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [UberFX](https://github.com/uber-go/fx) - Dependency injection framework
 - [Gin](https://github.com/gin-gonic/gin) - HTTP web framework
-- [GORM](https://gorm.io/) - ORM library
+- [GORM](https://gorm.io/) - ORM library with PostgreSQL support
 - [Zap](https://github.com/uber-go/zap) - Structured logging
 - [Viper](https://github.com/spf13/viper) - Configuration management
+- [Swagger](https://swagger.io/) - API documentation
+- [JWT](https://jwt.io/) - JSON Web Tokens
+- [PostgreSQL](https://www.postgresql.org/) - Database
 
 ---
 
