@@ -3,14 +3,13 @@ package entity
 import (
 	"time"
 
-	"gorm.io/plugin/soft_delete"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type BaseEntity struct {
-	CreatedAt *time.Time            `gorm:"column:created_at;autoCreateTime"`
-	CreatedBy string                `gorm:"column:created_by;type:varchar(50)"`
-	UpdatedAt *time.Time            `gorm:"column:updated_at;autoUpdateTime"`
-	UpdatedBy string                `gorm:"column:updated_by;type:varchar(50)"`
-	DeletedAt soft_delete.DeletedAt `gorm:"column:deleted_at;type:bigint;index:idx_deleted_at"`
-	DeletedBy string                `gorm:"column:deleted_by;type:varchar(50)"`
+	ID        uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	CreatedAt *time.Time     `gorm:"autoCreateTime"`
+	UpdatedAt *time.Time     `gorm:"autoUpdateTime"`
+	DeletedAt gorm.DeletedAt `gorm:"index:idx_deleted_at"`
 }

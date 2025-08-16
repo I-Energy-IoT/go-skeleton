@@ -9,16 +9,21 @@ import (
 	"{{.Name}}/pkg/util"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
-type JwtService struct {
+type JwtService interface {
+	GenerateToken(userID string, email string, username string, role string) (string, error)
+	ValidateToken(c *gin.Context) error
+}
+
+type jwtService struct {
 	cfg *config.JWTConfig
 }
 
-func NewJwtService(cfg *config.Config) *JwtService {
-	return &JwtService{cfg: &cfg.JWT}
+func NewJwtService(cfg *config.Config) JwtService {
+	return &jwtService{cfg: &cfg.JWT}
 }
 
 type Claims struct {
@@ -29,7 +34,7 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-func (s *JwtService) GenerateToken(userID string, email string, username string, role string) (string, error) {
+func (s *jwtService) GenerateToken(userID string, email string, username string, role string) (string, error) {
 	claims := &Claims{
 		UserID:   userID,
 		Email:    email,
@@ -51,7 +56,7 @@ func (s *JwtService) GenerateToken(userID string, email string, username string,
 	return tokenString, nil
 }
 
-func (s *JwtService) ValidateToken(c *gin.Context) error {
+func (s *jwtService) ValidateToken(c *gin.Context) error {
 	if token := c.Query("token"); token != "" {
 		return nil
 	}
@@ -98,7 +103,7 @@ func (s *JwtService) ValidateToken(c *gin.Context) error {
 	return nil
 }
 
-func (s *JwtService) extractClaims(claims jwt.MapClaims) (*Claims, error) {
+func (s *jwtService) extractClaims(claims jwt.MapClaims) (*Claims, error) {
 	userID, ok := claims[util.UserID.String()].(string)
 	if !ok || userID == "" {
 		return nil, errors.NewUnauthorizedError("invalid user ID in token")
@@ -127,7 +132,7 @@ func (s *JwtService) extractClaims(claims jwt.MapClaims) (*Claims, error) {
 	}, nil
 }
 
-func (s *JwtService) addClaimsToContext(c *gin.Context, claims *Claims) {
+func (s *jwtService) addClaimsToContext(c *gin.Context, claims *Claims) {
 	ctx := context.WithValue(c.Request.Context(), util.UserID, claims.UserID)
 	ctx = context.WithValue(ctx, util.Email, claims.Email)
 	ctx = context.WithValue(ctx, util.Username, claims.Username)

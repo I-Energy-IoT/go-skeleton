@@ -21,7 +21,7 @@ func (m *RecoverMiddleware) Middleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				m.	logger.WithError(err.(error)).
+				m.logger.WithError(err.(error)).
 					WithFields(map[string]interface{}{
 						"path":   ctx.Request.URL.Path,
 						"method": ctx.Request.Method,

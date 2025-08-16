@@ -1,0 +1,82 @@
+package entity
+
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
+)
+
+// JSON is a custom type for handling JSON fields in GORM
+type JSON map[string]interface{}
+
+// Value implements the driver.Valuer interface
+func (j JSON) Value() (driver.Value, error) {
+	if j == nil {
+		return "{}", nil
+	}
+	b, err := json.Marshal(j)
+	if err != nil {
+		return nil, err
+	}
+	return string(b), nil
+}
+
+// Scan implements the sql.Scanner interface
+func (j *JSON) Scan(value interface{}) error {
+	if value == nil {
+		*j = make(JSON)
+		return nil
+	}
+
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		return fmt.Errorf("cannot scan %T into JSON", value)
+	}
+
+	if len(bytes) == 0 || string(bytes) == "" {
+		*j = make(JSON)
+		return nil
+	}
+
+	if err := json.Unmarshal(bytes, j); err != nil {
+		*j = make(JSON)
+		return nil // Fallback to empty object on unmarshal error
+	}
+	return nil
+}
+
+type JSONArray []map[string]interface{}
+
+// Value implements the driver.Valuer interface for JSONArray
+func (a JSONArray) Value() (driver.Value, error) {
+	b, err := json.Marshal(a)
+	if err != nil {
+		return nil, err
+	}
+	return string(b), nil
+}
+
+// Scan implements the sql.Scanner interface for JSONArray
+func (a *JSONArray) Scan(value interface{}) error {
+	if value == nil {
+		*a = make(JSONArray, 0) // Gán thành mảng rỗng nếu nil
+		return nil
+	}
+
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		return fmt.Errorf("cannot scan %T into JSONArray", value)
+	}
+
+	return json.Unmarshal(bytes, a)
+}
